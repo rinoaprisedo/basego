@@ -43,9 +43,9 @@ type Session struct {
 func (Session) TableName() string { return "sessions" }
 
 type PasswordResetToken struct {
-	ID        uint64     `gorm:"primaryKey;autoIncrement"`
-	Email     string     `gorm:"type:varchar(255);index"`
-	Token     string     `gorm:"type:varchar(255);uniqueIndex"`
+	ID        uint64 `gorm:"primaryKey;autoIncrement"`
+	Email     string `gorm:"type:varchar(255);index"`
+	Token     string `gorm:"type:varchar(255);uniqueIndex"`
 	ExpiredAt time.Time
 	UsedAt    *time.Time
 	CreatedAt time.Time

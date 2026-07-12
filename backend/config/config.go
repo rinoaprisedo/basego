@@ -9,10 +9,10 @@ import (
 )
 
 type Config struct {
-	AppName    string
-	AppEnv     string
-	AppPort    string
-	AppSecret  string
+	AppName     string
+	AppEnv      string
+	AppPort     string
+	AppSecret   string
 	FrontendURL string
 
 	DBDriver string
@@ -27,12 +27,12 @@ type Config struct {
 	RedisPass string
 	RedisDB   int
 
-	SessionSecret         string
-	SessionMaxAge         int
-	SessionMaxConcurrent  int
+	SessionSecret        string
+	SessionMaxAge        int
+	SessionMaxConcurrent int
 
-	StorageDriver string
-	StoragePath   string
+	StorageDriver  string
+	StoragePath    string
 	StorageMaxSize int64
 
 	MailHost string
