@@ -1,15 +1,16 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { Plus, Pencil, Trash2, ShieldCheck } from 'lucide-react'
 import Table from '../../components/ui/Table'
-import Button from '../../components/ui/Button'
 import Badge from '../../components/ui/Badge'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import { Menubar, MenubarAction, MenubarLabel, MenubarSeparator } from '../../components/ui/Menubar'
 import RoleFormModal from './RoleFormModal'
 import { getRoles, createRole, updateRole, deleteRole } from '../../api/roles'
 import usePermission from '../../hooks/usePermission'
+import usePageActions from '../../hooks/usePageActions'
 
 function Roles() {
   const { canCreate, canEdit, canDelete } = usePermission()
@@ -65,13 +66,15 @@ function Roles() {
       label: '',
       render: (row) => (
         <div className="flex justify-end gap-1">
-          <button
-            onClick={() => navigate(`/roles/${row.uuid}/permissions`)}
-            className="rounded p-1.5 hover:bg-surface-hover"
-            title="Permissions"
-          >
-            <ShieldCheck size={16} />
-          </button>
+          {!row.is_superadmin && (
+            <button
+              onClick={() => navigate(`/roles/${row.uuid}/permissions`)}
+              className="rounded p-1.5 hover:bg-surface-hover"
+              title="Permissions"
+            >
+              <ShieldCheck size={16} />
+            </button>
+          )}
           {canEdit('roles') && !row.is_superadmin && (
             <button
               onClick={() => {
@@ -94,22 +97,32 @@ function Roles() {
     },
   ]
 
+  usePageActions(
+    useMemo(
+      () => (
+        <Menubar>
+          <MenubarLabel>Roles</MenubarLabel>
+          {canCreate('roles') && (
+            <>
+              <MenubarSeparator />
+              <MenubarAction
+                label="Add New"
+                icon={Plus}
+                onClick={() => {
+                  setEditing(null)
+                  setFormOpen(true)
+                }}
+              />
+            </>
+          )}
+        </Menubar>
+      ),
+      [canCreate],
+    ),
+  )
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-text-primary">Roles</h1>
-        {canCreate('roles') && (
-          <Button
-            onClick={() => {
-              setEditing(null)
-              setFormOpen(true)
-            }}
-          >
-            <Plus size={16} /> Add Role
-          </Button>
-        )}
-      </div>
-
       <Table
         columns={columns}
         data={data?.data || []}

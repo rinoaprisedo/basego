@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { Menu, ChevronDown, LogOut, User } from 'lucide-react'
 import toast from 'react-hot-toast'
 import useSidebarStore from '../../store/sidebarStore'
 import useAuthStore from '../../store/authStore'
-import useBreadcrumbStore from '../../store/breadcrumbStore'
+import usePageActionsStore from '../../store/pageActionsStore'
 import { logout as logoutApi } from '../../api/auth'
 
 function Navbar() {
@@ -12,16 +12,8 @@ function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false)
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
-  const labels = useBreadcrumbStore((s) => s.labels)
+  const pageActions = usePageActionsStore((s) => s.actions)
   const navigate = useNavigate()
-  const location = useLocation()
-
-  // Swap raw URL segments (e.g. a role UUID) for a human-readable label when
-  // a page has registered one via useBreadcrumbStore.
-  const crumbs = location.pathname
-    .split('/')
-    .filter(Boolean)
-    .map((segment) => labels[segment] || segment)
 
   const handleLogout = async () => {
     try {
@@ -35,16 +27,14 @@ function Navbar() {
   }
 
   return (
-    <header className="sticky top-0 z-20 flex h-[60px] items-center justify-between border-b border-surface-border bg-surface-card px-4">
-      <div className="flex items-center gap-3">
-        <button onClick={toggleSidebar} className="rounded-md p-2 text-text-secondary transition-colors duration-100 hover:bg-surface-hover lg:hidden">
+    <header className="sticky top-0 z-20 flex h-[60px] items-center justify-between border-b border-surface-border bg-surface-card px-4 md:px-[28px]">
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        <button onClick={toggleSidebar} className="shrink-0 rounded-md p-2 text-text-secondary transition-colors duration-100 hover:bg-surface-hover lg:hidden">
           <Menu size={20} />
         </button>
-        <nav className="text-[13px] text-text-secondary">
-          <span className="capitalize">{crumbs.length ? crumbs.join(' / ') : 'Dashboard'}</span>
-        </nav>
+        {pageActions}
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex shrink-0 items-center gap-3">
         <div className="relative">
           <button
             onClick={() => setMenuOpen((v) => !v)}

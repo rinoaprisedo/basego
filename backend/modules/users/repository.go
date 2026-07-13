@@ -44,6 +44,27 @@ func (r *Repository) List(p utils.Pagination, status, roleUUID string) ([]User, 
 	return list, total, err
 }
 
+// ListAll returns every user matching the filters, unpaginated, for export.
+func (r *Repository) ListAll(search, status, roleUUID string) ([]User, error) {
+	q := r.DB.Model(&User{}).Preload("Role")
+
+	if search != "" {
+		like := "%" + search + "%"
+		q = q.Where("name ILIKE ? OR email ILIKE ?", like, like)
+	}
+	if status != "" {
+		q = q.Where("status = ?", status)
+	}
+	if roleUUID != "" {
+		q = q.Joins("JOIN roles ON roles.id = users.role_id").
+			Where("roles.uuid = ?", roleUUID)
+	}
+
+	var list []User
+	err := q.Order("created_at desc").Find(&list).Error
+	return list, err
+}
+
 func (r *Repository) FindByUUID(uuidStr string) (*User, error) {
 	var user User
 	if err := r.DB.Preload("Role").Where("uuid = ?", uuidStr).First(&user).Error; err != nil {
@@ -94,4 +115,16 @@ func (r *Repository) ListSessions(userID uint64) ([]Session, error) {
 
 func (r *Repository) DeleteSession(sessionUUID string, userID uint64) error {
 	return r.DB.Where("uuid = ? AND user_id = ?", sessionUUID, userID).Delete(&Session{}).Error
+}
+
+// DeleteAllSessions removes every DB session row for a user, used to mirror a
+// Redis-side force-logout-all (e.g. after a role or status change).
+func (r *Repository) DeleteAllSessions(userID uint64) error {
+	return r.DB.Where("user_id = ?", userID).Delete(&Session{}).Error
+}
+
+func (r *Repository) FindSessionToken(sessionUUID string, userID uint64) (string, error) {
+	var s Session
+	err := r.DB.Where("uuid = ? AND user_id = ?", sessionUUID, userID).First(&s).Error
+	return s.Token, err
 }

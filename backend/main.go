@@ -106,7 +106,7 @@ func main() {
 	authHandler := auth.NewHandler(db, rdb, cfg)
 	authHandler.RegisterRoutes(api, sessionAuth)
 
-	usersHandler := users.NewHandler(db, cfg, localStorage)
+	usersHandler := users.NewHandler(db, cfg, localStorage, rdb)
 	usersHandler.RegisterRoutes(api, guard, uploadLimiter)
 
 	rolesHandler := roles.NewHandler(db)

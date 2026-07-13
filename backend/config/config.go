@@ -9,10 +9,8 @@ import (
 )
 
 type Config struct {
-	AppName     string
 	AppEnv      string
 	AppPort     string
-	AppSecret   string
 	FrontendURL string
 
 	DBDriver string
@@ -27,23 +25,16 @@ type Config struct {
 	RedisPass string
 	RedisDB   int
 
-	SessionSecret        string
 	SessionMaxAge        int
 	SessionMaxConcurrent int
 
-	StorageDriver  string
 	StoragePath    string
 	StorageMaxSize int64
 
-	MailHost string
-	MailPort string
-	MailUser string
-	MailPass string
-	MailFrom string
-
-	LogCleanupDays int
-	RateLimitLogin int
-	RateLimitAPI   int
+	LogCleanupDays           int
+	RateLimitLogin           int
+	RateLimitLoginLockoutMin int
+	RateLimitAPI             int
 }
 
 var Cfg *Config
@@ -54,10 +45,8 @@ func Load() *Config {
 	}
 
 	Cfg = &Config{
-		AppName:     getEnv("APP_NAME", "BaseAdmin"),
 		AppEnv:      getEnv("APP_ENV", "development"),
 		AppPort:     getEnv("APP_PORT", "8500"),
-		AppSecret:   getEnv("APP_SECRET", ""),
 		FrontendURL: getEnv("FRONTEND_URL", "http://localhost:8501"),
 
 		DBDriver: getEnv("DB_DRIVER", "postgres"),
@@ -72,23 +61,16 @@ func Load() *Config {
 		RedisPass: getEnv("REDIS_PASS", ""),
 		RedisDB:   getEnvInt("REDIS_DB", 0),
 
-		SessionSecret:        getEnv("SESSION_SECRET", ""),
 		SessionMaxAge:        getEnvInt("SESSION_MAX_AGE", 86400),
 		SessionMaxConcurrent: getEnvInt("SESSION_MAX_CONCURRENT", 3),
 
-		StorageDriver:  getEnv("STORAGE_DRIVER", "local"),
 		StoragePath:    getEnv("STORAGE_PATH", "./storage/uploads"),
 		StorageMaxSize: int64(getEnvInt("STORAGE_MAX_SIZE", 2097152)),
 
-		MailHost: getEnv("MAIL_HOST", ""),
-		MailPort: getEnv("MAIL_PORT", "587"),
-		MailUser: getEnv("MAIL_USER", ""),
-		MailPass: getEnv("MAIL_PASS", ""),
-		MailFrom: getEnv("MAIL_FROM", ""),
-
-		LogCleanupDays: getEnvInt("LOG_CLEANUP_DAYS", 90),
-		RateLimitLogin: getEnvInt("RATE_LIMIT_LOGIN", 5),
-		RateLimitAPI:   getEnvInt("RATE_LIMIT_API", 100),
+		LogCleanupDays:           getEnvInt("LOG_CLEANUP_DAYS", 90),
+		RateLimitLogin:           getEnvInt("RATE_LIMIT_LOGIN", 5),
+		RateLimitLoginLockoutMin: getEnvInt("RATE_LIMIT_LOGIN_LOCKOUT_MINUTES", 15),
+		RateLimitAPI:             getEnvInt("RATE_LIMIT_API", 100),
 	}
 
 	return Cfg

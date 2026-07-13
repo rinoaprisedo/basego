@@ -1,6 +1,6 @@
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { useMutation } from '@tanstack/react-query'
 import Input from '../../components/ui/Input'
@@ -43,11 +43,6 @@ function Login() {
       <form className="flex flex-col gap-4" onSubmit={handleSubmit((data) => mutation.mutate(data))}>
         <Input label="Email" type="email" placeholder="you@example.com" error={errors.email?.message} {...register('email')} />
         <Input label="Password" type="password" placeholder="••••••••" error={errors.password?.message} {...register('password')} />
-        <div className="text-right text-sm">
-          <Link to="/forgot-password" className="text-primary hover:underline">
-            Forgot password?
-          </Link>
-        </div>
         <Button type="submit" disabled={mutation.isPending} className="w-full">
           {mutation.isPending ? 'Signing in...' : 'Sign in'}
         </Button>

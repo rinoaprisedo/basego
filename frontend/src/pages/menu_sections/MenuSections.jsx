@@ -1,10 +1,10 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { Plus, Pencil, Trash2, ArrowUp, ArrowDown } from 'lucide-react'
 import Table from '../../components/ui/Table'
-import Button from '../../components/ui/Button'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import { Menubar, MenubarAction, MenubarLabel, MenubarSeparator } from '../../components/ui/Menubar'
 import MenuSectionFormModal from './MenuSectionFormModal'
 import {
   getMenuSections,
@@ -14,6 +14,7 @@ import {
   reorderMenuSections,
 } from '../../api/menuSections'
 import usePermission from '../../hooks/usePermission'
+import usePageActions from '../../hooks/usePageActions'
 
 function MenuSections() {
   const { canCreate, canEdit, canDelete } = usePermission()
@@ -101,22 +102,32 @@ function MenuSections() {
     },
   ]
 
+  usePageActions(
+    useMemo(
+      () => (
+        <Menubar>
+          <MenubarLabel>Menu Sections</MenubarLabel>
+          {canCreate('menu-sections') && (
+            <>
+              <MenubarSeparator />
+              <MenubarAction
+                label="Add New"
+                icon={Plus}
+                onClick={() => {
+                  setEditing(null)
+                  setFormOpen(true)
+                }}
+              />
+            </>
+          )}
+        </Menubar>
+      ),
+      [canCreate],
+    ),
+  )
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-text-primary">Menu Sections</h1>
-        {canCreate('menu-sections') && (
-          <Button
-            onClick={() => {
-              setEditing(null)
-              setFormOpen(true)
-            }}
-          >
-            <Plus size={16} /> Add Section
-          </Button>
-        )}
-      </div>
-
       <Table columns={columns} data={data?.data || []} loading={isLoading} />
 
       <MenuSectionFormModal

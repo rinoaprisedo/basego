@@ -44,9 +44,9 @@ function Sidebar() {
           isCollapsed ? '-translate-x-full lg:translate-x-0' : 'translate-x-0'
         }`}
       >
-        <div className="flex h-[60px] items-center justify-between border-b border-surface-border px-4">
+        <div className="relative flex h-[60px] items-center justify-center border-b border-surface-border px-4">
           <span className="truncate text-[17px] font-bold tracking-[-.02em] text-text-primary">{appName}</span>
-          <button onClick={toggle} className="text-text-secondary lg:hidden">
+          <button onClick={toggle} className="absolute right-4 text-text-secondary lg:hidden">
             <X size={20} />
           </button>
         </div>

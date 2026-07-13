@@ -11,3 +11,19 @@ export const uploadAvatar = (uuid, formData) =>
 export const getUserSessions = (uuid) => client.get(`/users/${uuid}/sessions`).then((r) => r.data)
 export const deleteUserSession = (uuid, sessionUuid) =>
   client.delete(`/users/${uuid}/sessions/${sessionUuid}`).then((r) => r.data)
+
+function downloadFile(blob, filename) {
+  const url = window.URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  window.URL.revokeObjectURL(url)
+}
+
+export const exportUsersCsv = (params) =>
+  client.get('/users/export/csv', { params, responseType: 'blob' }).then((r) => downloadFile(r.data, 'users.csv'))
+export const exportUsersExcel = (params) =>
+  client.get('/users/export/excel', { params, responseType: 'blob' }).then((r) => downloadFile(r.data, 'users.xlsx'))

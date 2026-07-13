@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"errors"
+	"log"
 	"time"
 
 	"baseadmin/backend/config"
@@ -78,14 +79,16 @@ func (s *Service) Login(email, password, ip, userAgent string) (*LoginResult, er
 
 	// Mirror the Redis session as a DB row so /users/:uuid/sessions can list
 	// and revoke active sessions; Redis remains the source of truth for auth.
-	_ = s.repo.CreateSession(&users.Session{
+	if err := s.repo.CreateSession(&users.Session{
 		UserID:    user.ID,
 		Token:     token,
 		IPAddress: ip,
 		UserAgent: userAgent,
 		ExpiredAt: time.Now().Add(ttl),
 		CreatedAt: time.Now(),
-	})
+	}); err != nil {
+		log.Printf("CreateSession DB mirror failed for user %d: %v", user.ID, err)
+	}
 
 	s.repo.UpdateLastLogin(user, time.Now())
 

@@ -9,8 +9,12 @@ function Modal({ open, onClose, title, children, size = 'md' }) {
   // always covers the true viewport, regardless of any ancestor establishing
   // its own stacking/containing context (transform, filter, etc.).
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/25 p-4 backdrop-blur-[2px]">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/25 p-4 backdrop-blur-[2px]"
+      onClick={onClose}
+    >
       <div
+        onClick={(e) => e.stopPropagation()}
         className={`w-full ${sizes[size]} max-h-[90vh] overflow-y-auto rounded-xl bg-surface-card shadow-md`}
       >
         <div className="flex items-center justify-between border-b border-surface-border px-[26px] py-[18px]">

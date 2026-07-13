@@ -1,12 +1,16 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { format } from 'date-fns'
+import { Filter } from 'lucide-react'
 import Table from '../../components/ui/Table'
 import Badge from '../../components/ui/Badge'
+import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
 import Select from '../../components/ui/Select'
+import { Menubar, MenubarLabel, MenubarSeparator, MenubarMenu } from '../../components/ui/Menubar'
 import ActivityLogDetailModal from './ActivityLogDetailModal'
 import { getActivityLogs } from '../../api/activityLogs'
+import usePageActions from '../../hooks/usePageActions'
 
 const actionVariant = { create: 'success', update: 'primary', delete: 'danger', login: 'success', logout: 'neutral', view: 'neutral' }
 
@@ -18,6 +22,10 @@ function ActivityLogs() {
   const [action, setAction] = useState('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
+  const [draftModule, setDraftModule] = useState('')
+  const [draftAction, setDraftAction] = useState('')
+  const [draftDateFrom, setDraftDateFrom] = useState('')
+  const [draftDateTo, setDraftDateTo] = useState('')
   const [selected, setSelected] = useState(null)
 
   const { data, isLoading } = useQuery({
@@ -51,24 +59,93 @@ function ActivityLogs() {
     { key: 'ip_address', label: 'IP' },
   ]
 
+  usePageActions(
+    useMemo(
+      () => (
+        <Menubar>
+          <MenubarLabel>Activity Logs</MenubarLabel>
+          <MenubarSeparator />
+          <MenubarMenu
+            id="filter"
+            label="Filter"
+            icon={Filter}
+            align="sheet"
+            active={!!(action || module || dateFrom || dateTo)}
+          >
+            {(close) => (
+              <div className="w-full p-2 sm:w-72">
+                <div className="grid grid-cols-2 gap-3">
+                  <Select label="Action" value={draftAction} onChange={(e) => setDraftAction(e.target.value)}>
+                    <option value="">All</option>
+                    {['create', 'update', 'delete', 'login', 'logout', 'view'].map((a) => (
+                      <option key={a} value={a}>
+                        {a}
+                      </option>
+                    ))}
+                  </Select>
+                  <Input
+                    label="Module"
+                    value={draftModule}
+                    onChange={(e) => setDraftModule(e.target.value)}
+                    placeholder="e.g. users"
+                  />
+                  <Input
+                    label="Date From"
+                    type="date"
+                    value={draftDateFrom}
+                    onChange={(e) => setDraftDateFrom(e.target.value)}
+                  />
+                  <Input
+                    label="Date To"
+                    type="date"
+                    value={draftDateTo}
+                    onChange={(e) => setDraftDateTo(e.target.value)}
+                  />
+                </div>
+                <div className="mt-3 flex items-center justify-end gap-2 border-t border-surface-border pt-3">
+                  <Button
+                    variant="secondary"
+                    className="h-[32px] px-3"
+                    onClick={() => {
+                      setDraftAction('')
+                      setDraftModule('')
+                      setDraftDateFrom('')
+                      setDraftDateTo('')
+                      setAction('')
+                      setModule('')
+                      setDateFrom('')
+                      setDateTo('')
+                      setPage(1)
+                      close()
+                    }}
+                  >
+                    Reset
+                  </Button>
+                  <Button
+                    className="h-[32px] px-3"
+                    onClick={() => {
+                      setAction(draftAction)
+                      setModule(draftModule)
+                      setDateFrom(draftDateFrom)
+                      setDateTo(draftDateTo)
+                      setPage(1)
+                      close()
+                    }}
+                  >
+                    Apply
+                  </Button>
+                </div>
+              </div>
+            )}
+          </MenubarMenu>
+        </Menubar>
+      ),
+      [action, module, dateFrom, dateTo, draftAction, draftModule, draftDateFrom, draftDateTo],
+    ),
+  )
+
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-bold text-text-primary">Activity Logs</h1>
-
-      <div className="grid grid-cols-2 gap-3 rounded-lg border border-surface-border bg-surface-card p-4 sm:grid-cols-4">
-        <Select label="Action" value={action} onChange={(e) => setAction(e.target.value)}>
-          <option value="">All</option>
-          {['create', 'update', 'delete', 'login', 'logout', 'view'].map((a) => (
-            <option key={a} value={a}>
-              {a}
-            </option>
-          ))}
-        </Select>
-        <Input label="Module" value={module} onChange={(e) => setModule(e.target.value)} placeholder="e.g. users" />
-        <Input label="Date From" type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-        <Input label="Date To" type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
-      </div>
-
       <Table
         columns={columns}
         data={data?.data || []}

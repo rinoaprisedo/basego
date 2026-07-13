@@ -19,7 +19,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, sessionAuth gin.HandlerFun
 	// reasonable pragmatic approximation of the per-email spec requirement.
 	forgotLimiter := middleware.RateLimit(h.Redis, "forgot-password", 3, time.Hour, func(c *gin.Context) string { return c.ClientIP() })
 
-	g.POST("/login", middleware.LoginLockout(h.Redis, h.Cfg.RateLimitLogin), loginLimiter, h.Login)
+	g.POST("/login", middleware.LoginLockout(h.Redis, h.Cfg.RateLimitLogin, h.Cfg.RateLimitLoginLockoutMin), loginLimiter, h.Login)
 	g.POST("/logout", sessionAuth, h.Logout)
 	g.GET("/me", sessionAuth, h.Me)
 	g.POST("/forgot-password", forgotLimiter, h.ForgotPassword)

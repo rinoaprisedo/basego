@@ -4,8 +4,6 @@ import AuthLayout from '../components/layout/AuthLayout'
 import ProtectedRoute from './ProtectedRoute'
 
 import Login from '../pages/auth/Login'
-import ForgotPassword from '../pages/auth/ForgotPassword'
-import ResetPassword from '../pages/auth/ResetPassword'
 import Dashboard from '../pages/dashboard/Dashboard'
 import Users from '../pages/users/Users'
 import Menus from '../pages/menus/Menus'
@@ -23,8 +21,6 @@ function AppRouter() {
     <Routes>
       <Route element={<AuthLayout />}>
         <Route path="/login" element={<Login />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
       </Route>
 
       <Route path="/maintenance" element={<Maintenance />} />

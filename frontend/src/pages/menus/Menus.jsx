@@ -1,16 +1,17 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { Plus, Pencil, Trash2, ArrowUp, ArrowDown } from 'lucide-react'
-import Button from '../../components/ui/Button'
 import Badge from '../../components/ui/Badge'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import EmptyState from '../../components/ui/EmptyState'
 import Skeleton from '../../components/ui/Skeleton'
+import { Menubar, MenubarAction, MenubarLabel, MenubarSeparator } from '../../components/ui/Menubar'
 import MenuFormModal from './MenuFormModal'
 import { getMenus, createMenu, updateMenu, deleteMenu, reorderMenus } from '../../api/menus'
 import { getMenuSections } from '../../api/menuSections'
 import usePermission from '../../hooks/usePermission'
+import usePageActions from '../../hooks/usePageActions'
 
 function Menus() {
   const { canCreate, canEdit, canDelete } = usePermission()
@@ -70,22 +71,32 @@ function Menus() {
     ])
   }
 
+  usePageActions(
+    useMemo(
+      () => (
+        <Menubar>
+          <MenubarLabel>Menus</MenubarLabel>
+          {canCreate('menus') && (
+            <>
+              <MenubarSeparator />
+              <MenubarAction
+                label="Add New"
+                icon={Plus}
+                onClick={() => {
+                  setEditing(null)
+                  setFormOpen(true)
+                }}
+              />
+            </>
+          )}
+        </Menubar>
+      ),
+      [canCreate],
+    ),
+  )
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-text-primary">Menus</h1>
-        {canCreate('menus') && (
-          <Button
-            onClick={() => {
-              setEditing(null)
-              setFormOpen(true)
-            }}
-          >
-            <Plus size={16} /> Add Menu
-          </Button>
-        )}
-      </div>
-
       {isLoading ? (
         <Skeleton className="h-64 w-full" />
       ) : grouped.length === 0 ? (

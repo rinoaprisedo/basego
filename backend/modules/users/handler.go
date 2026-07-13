@@ -9,6 +9,7 @@ import (
 	"baseadmin/backend/utils"
 
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
 
@@ -20,10 +21,10 @@ type Handler struct {
 	Service *Service
 }
 
-func NewHandler(db *gorm.DB, cfg *config.Config, s storage.StorageInterface) *Handler {
+func NewHandler(db *gorm.DB, cfg *config.Config, s storage.StorageInterface, rdb *redis.Client) *Handler {
 	return &Handler{
 		Cfg:     cfg,
-		Service: NewService(NewRepository(db), s),
+		Service: NewService(NewRepository(db), s, rdb),
 	}
 }
 

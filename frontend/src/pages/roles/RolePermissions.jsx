@@ -1,13 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { ArrowLeft } from 'lucide-react'
-import Button from '../../components/ui/Button'
+import { ArrowLeft, Save } from 'lucide-react'
 import Skeleton from '../../components/ui/Skeleton'
+import { Menubar, MenubarAction, MenubarLabel, MenubarSeparator } from '../../components/ui/Menubar'
 import { getRole, getRolePermissions, updateRolePermissions } from '../../api/roles'
 import { getMenus } from '../../api/menus'
-import useBreadcrumbStore from '../../store/breadcrumbStore'
+import usePageActions from '../../hooks/usePageActions'
 
 const fields = [
   { key: 'can_view', label: 'View' },
@@ -21,13 +21,9 @@ function RolePermissions() {
   const navigate = useNavigate()
   const [matrix, setMatrix] = useState({})
 
-  const setLabel = useBreadcrumbStore((s) => s.setLabel)
   const { data: role } = useQuery({ queryKey: ['roles', uuid], queryFn: () => getRole(uuid) })
   const roleName = role?.data?.role?.name
 
-  useEffect(() => {
-    if (roleName) setLabel(uuid, roleName)
-  }, [uuid, roleName, setLabel])
   // Full menu catalog — the matrix always shows every menu, not just ones
   // that already have a saved permission row.
   const { data: menusData, isLoading: menusLoading } = useQuery({
@@ -104,22 +100,27 @@ function RolePermissions() {
 
   const rows = Object.entries(matrix)
 
+  usePageActions(
+    useMemo(
+      () => (
+        <Menubar>
+          <MenubarAction label="Back" icon={ArrowLeft} onClick={() => navigate('/roles')} />
+          <MenubarSeparator />
+          <MenubarLabel>Permissions{roleName ? ` - ${roleName}` : ''}</MenubarLabel>
+          <MenubarSeparator />
+          <MenubarAction
+            label={saveMutation.isPending ? 'Saving...' : 'Save Changes'}
+            icon={Save}
+            onClick={handleSave}
+          />
+        </Menubar>
+      ),
+      [roleName, saveMutation.isPending, matrix],
+    ),
+  )
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <button onClick={() => navigate('/roles')} className="rounded p-2 hover:bg-surface-hover">
-            <ArrowLeft size={18} />
-          </button>
-          <h1 className="text-xl font-bold text-text-primary">
-            Permissions - {roleName}
-          </h1>
-        </div>
-        <Button onClick={handleSave} disabled={saveMutation.isPending}>
-          {saveMutation.isPending ? 'Saving...' : 'Save Changes'}
-        </Button>
-      </div>
-
       <div className="overflow-x-auto rounded-lg border border-surface-border bg-surface-card">
         {isLoading ? (
           <div className="p-4 space-y-2">

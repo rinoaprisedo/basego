@@ -34,6 +34,20 @@ func (h *Handler) List(c *gin.Context) {
 	utils.Success(c, 200, "ok", result)
 }
 
+// Public godoc
+// @Summary		Get public branding settings (app name, logo, favicon, primary color)
+// @Tags			settings
+// @Success		200	{object}	utils.Response
+// @Router			/settings/public [get]
+func (h *Handler) Public(c *gin.Context) {
+	result, err := h.Service.Public()
+	if err != nil {
+		utils.Error(c, 500, "failed to fetch settings")
+		return
+	}
+	utils.Success(c, 200, "ok", result)
+}
+
 // BulkUpdate godoc
 // @Summary		Upsert multiple settings
 // @Tags			settings

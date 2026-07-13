@@ -5,6 +5,9 @@ import (
 
 	"baseadmin/backend/modules/roles"
 	"baseadmin/backend/utils"
+
+	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type UserStatus string
@@ -45,6 +48,13 @@ type Session struct {
 }
 
 func (Session) TableName() string { return "sessions" }
+
+func (s *Session) BeforeCreate(tx *gorm.DB) error {
+	if s.UUID == "" {
+		s.UUID = uuid.New().String()
+	}
+	return nil
+}
 
 type PasswordResetToken struct {
 	ID        uint64 `gorm:"primaryKey;autoIncrement"`

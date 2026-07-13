@@ -1,12 +1,15 @@
 package users
 
 import (
+	"context"
 	"errors"
 	"mime/multipart"
 
+	"baseadmin/backend/session"
 	"baseadmin/backend/storage"
 	"baseadmin/backend/utils"
 
+	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -23,14 +26,29 @@ var (
 type Service struct {
 	repo    *Repository
 	storage storage.StorageInterface
+	redis   *redis.Client
 }
 
-func NewService(repo *Repository, s storage.StorageInterface) *Service {
-	return &Service{repo: repo, storage: s}
+func NewService(repo *Repository, s storage.StorageInterface, rdb *redis.Client) *Service {
+	return &Service{repo: repo, storage: s, redis: rdb}
+}
+
+// invalidateSessions force-logs-out every active session for a user. Called
+// after a role or status change so a privilege downgrade (or suspension)
+// takes effect immediately instead of waiting for the session's natural TTL —
+// SessionAuth re-checks role/status per request, but the old token would
+// otherwise keep working until it expires.
+func (s *Service) invalidateSessions(userID uint64) {
+	_ = session.DeleteAllForUser(context.Background(), s.redis, userID)
+	_ = s.repo.DeleteAllSessions(userID)
 }
 
 func (s *Service) List(p utils.Pagination, status, roleUUID string) ([]User, int64, error) {
 	return s.repo.List(p, status, roleUUID)
+}
+
+func (s *Service) ListAll(search, status, roleUUID string) ([]User, error) {
+	return s.repo.ListAll(search, status, roleUUID)
 }
 
 func (s *Service) Get(uuidStr string) (*User, error) {
@@ -97,6 +115,8 @@ func (s *Service) Update(uuidStr string, in UpdateInput) (before *User, after *U
 		return nil, nil, ErrNotFound
 	}
 	old := *user
+	statusChanged := in.Status != "" && UserStatus(in.Status) != old.Status
+	roleChanged := in.RoleProvided && (old.Role == nil || old.Role.UUID.String() != in.RoleUUID)
 
 	if in.Name != "" {
 		user.Name = in.Name
@@ -114,6 +134,10 @@ func (s *Service) Update(uuidStr string, in UpdateInput) (before *User, after *U
 	}
 	if in.RoleProvided {
 		_ = s.repo.SetRole(user, in.RoleUUID)
+	}
+
+	if statusChanged || roleChanged {
+		s.invalidateSessions(user.ID)
 	}
 
 	return &old, user, nil
@@ -145,6 +169,9 @@ func (s *Service) UpdateStatus(uuidStr, status string) (oldStatus UserStatus, us
 	user.Status = UserStatus(status)
 	if err := s.repo.Save(user); err != nil {
 		return "", nil, err
+	}
+	if oldStatus != user.Status {
+		s.invalidateSessions(user.ID)
 	}
 	return oldStatus, user, nil
 }
@@ -179,6 +206,13 @@ func (s *Service) KickSession(uuidStr, sessionUUID string) error {
 	user, err := s.repo.FindByUUID(uuidStr)
 	if err != nil {
 		return ErrNotFound
+	}
+	token, err := s.repo.FindSessionToken(sessionUUID, user.ID)
+	if err != nil {
+		return ErrNotFound
+	}
+	if err := session.Delete(context.Background(), s.redis, token, user.ID); err != nil {
+		return err
 	}
 	return s.repo.DeleteSession(sessionUUID, user.ID)
 }

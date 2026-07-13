@@ -20,13 +20,13 @@ export default {
       },
       colors: {
         primary: {
-          DEFAULT: '#c2622e',
-          dark: '#a8501f',
+          DEFAULT: 'rgb(var(--color-primary-rgb) / <alpha-value>)',
+          dark: 'rgb(var(--color-primary-dark-rgb) / <alpha-value>)',
         },
         sidebar: {
           bg: '#ffffff',
           text: '#6b6a65',
-          active: '#c2622e',
+          active: 'rgb(var(--color-primary-rgb) / <alpha-value>)',
         },
         surface: {
           bg: '#f7f6f3',

@@ -36,6 +36,33 @@ func (s *Service) List() (map[string]string, error) {
 	return result, nil
 }
 
+// publicKeys are readable without a session — pure branding, never anything
+// sensitive (mail credentials, API keys, etc live under other keys in the
+// same table and must stay behind the authenticated List()).
+var publicKeys = map[string]bool{
+	"app_name":      true,
+	"app_logo":      true,
+	"app_favicon":   true,
+	"primary_color": true,
+}
+
+// Public returns only the whitelisted branding settings, for the login page
+// (and anywhere else pre-auth) to render the app name/logo/color correctly
+// without needing a session.
+func (s *Service) Public() (map[string]string, error) {
+	all, err := s.List()
+	if err != nil {
+		return nil, err
+	}
+	result := make(map[string]string, len(publicKeys))
+	for key := range publicKeys {
+		if v, ok := all[key]; ok {
+			result[key] = v
+		}
+	}
+	return result, nil
+}
+
 func (s *Service) BulkUpdate(payload map[string]string) error {
 	for key, value := range payload {
 		if err := s.repo.Upsert(key, value, TypeString); err != nil {

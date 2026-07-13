@@ -34,8 +34,8 @@ func RateLimit(rdb *redis.Client, prefix string, max int, window time.Duration, 
 }
 
 // LoginLockout checks/increments a separate lockout counter keyed by IP.
-// After RATE_LIMIT_LOGIN failures within a minute the IP is locked for 15 minutes.
-func LoginLockout(rdb *redis.Client, maxFails int) gin.HandlerFunc {
+// After maxFails failures within a minute the IP is locked for lockoutMin minutes.
+func LoginLockout(rdb *redis.Client, maxFails, lockoutMin int) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx := context.Background()
 		ip := c.ClientIP()
@@ -48,20 +48,24 @@ func LoginLockout(rdb *redis.Client, maxFails int) gin.HandlerFunc {
 		c.Set("login_fail_key", "login_fails:"+ip)
 		c.Set("login_lock_key", lockKey)
 		c.Set("login_max_fails", maxFails)
+		c.Set("login_lockout_min", lockoutMin)
 		c.Next()
 	}
 }
 
 // RegisterLoginFailure increments the failure counter and locks the IP out
-// for 15 minutes once maxFails is reached within the 1 minute window.
+// for RATE_LIMIT_LOGIN_LOCKOUT_MINUTES once maxFails is reached within the
+// 1 minute window.
 func RegisterLoginFailure(c *gin.Context, rdb *redis.Client) {
 	ctx := context.Background()
 	failKeyV, _ := c.Get("login_fail_key")
 	lockKeyV, _ := c.Get("login_lock_key")
 	maxFailsV, _ := c.Get("login_max_fails")
+	lockoutMinV, _ := c.Get("login_lockout_min")
 	failKey, _ := failKeyV.(string)
 	lockKey, _ := lockKeyV.(string)
 	maxFails, _ := maxFailsV.(int)
+	lockoutMin, _ := lockoutMinV.(int)
 	if failKey == "" {
 		return
 	}
@@ -70,7 +74,7 @@ func RegisterLoginFailure(c *gin.Context, rdb *redis.Client) {
 		rdb.Expire(ctx, failKey, time.Minute)
 	}
 	if int(count) >= maxFails {
-		rdb.Set(ctx, lockKey, "1", 15*time.Minute)
+		rdb.Set(ctx, lockKey, "1", time.Duration(lockoutMin)*time.Minute)
 		rdb.Del(ctx, failKey)
 	}
 }

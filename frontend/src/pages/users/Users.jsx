@@ -1,17 +1,20 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { Plus, Pencil, Trash2, KeyRound } from 'lucide-react'
+import { Plus, Pencil, Trash2, KeyRound, MoreHorizontal, FileSpreadsheet, FileText, Filter } from 'lucide-react'
 import { format } from 'date-fns'
 import Table from '../../components/ui/Table'
 import Button from '../../components/ui/Button'
 import Badge from '../../components/ui/Badge'
+import { Menubar, MenubarAction, MenubarMenu, MenubarItem, MenubarLabel, MenubarSeparator } from '../../components/ui/Menubar'
+import Select from '../../components/ui/Select'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import UserFormModal from './UserFormModal'
 import UserSessionsModal from './UserSessionsModal'
-import { getUsers, createUser, updateUser, deleteUser } from '../../api/users'
+import { getUsers, createUser, updateUser, deleteUser, exportUsersCsv, exportUsersExcel } from '../../api/users'
 import { getRoles } from '../../api/roles'
 import usePermission from '../../hooks/usePermission'
+import usePageActions from '../../hooks/usePageActions'
 
 const statusVariant = { active: 'success', inactive: 'neutral', suspended: 'danger' }
 
@@ -27,10 +30,15 @@ function Users() {
   const [editing, setEditing] = useState(null)
   const [deleting, setDeleting] = useState(null)
   const [sessionsUser, setSessionsUser] = useState(null)
+  const [status, setStatus] = useState('')
+  const [roleFilter, setRoleFilter] = useState('')
+  const [draftStatus, setDraftStatus] = useState('')
+  const [draftRole, setDraftRole] = useState('')
 
   const { data, isLoading } = useQuery({
-    queryKey: ['users', { page, limit, search, sortBy, sortDir }],
-    queryFn: () => getUsers({ page, limit, search, sort_by: sortBy, sort_dir: sortDir }),
+    queryKey: ['users', { page, limit, search, sortBy, sortDir, status, roleFilter }],
+    queryFn: () =>
+      getUsers({ page, limit, search, sort_by: sortBy, sort_dir: sortDir, status, role: roleFilter }),
   })
 
   const { data: rolesData } = useQuery({ queryKey: ['roles', 'all'], queryFn: () => getRoles({ limit: 100 }) })
@@ -122,22 +130,105 @@ function Users() {
     },
   ]
 
+  usePageActions(
+    useMemo(
+      () => (
+        <div className="flex min-w-0 items-center gap-3">
+          <Menubar>
+            <MenubarLabel>Users</MenubarLabel>
+            <MenubarSeparator />
+            {canCreate('users') && (
+              <MenubarAction
+                label="Add New"
+                icon={Plus}
+                onClick={() => {
+                  setEditing(null)
+                  setFormOpen(true)
+                }}
+              />
+            )}
+            <MenubarMenu id="filter" label="Filter" icon={Filter} align="sheet" active={!!(status || roleFilter)}>
+              {(close) => (
+                <div className="w-full p-2 sm:w-60">
+                  <div className="flex flex-col gap-3">
+                    <Select label="Status" value={draftStatus} onChange={(e) => setDraftStatus(e.target.value)}>
+                      <option value="">All</option>
+                      <option value="active">Active</option>
+                      <option value="inactive">Inactive</option>
+                      <option value="suspended">Suspended</option>
+                    </Select>
+                    <Select label="Role" value={draftRole} onChange={(e) => setDraftRole(e.target.value)}>
+                      <option value="">All</option>
+                      {(rolesData?.data || []).map((r) => (
+                        <option key={r.uuid} value={r.uuid}>
+                          {r.name}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+                  <div className="mt-3 flex items-center justify-end gap-2 border-t border-surface-border pt-3">
+                    <Button
+                      variant="secondary"
+                      className="h-[32px] px-3"
+                      onClick={() => {
+                        setDraftStatus('')
+                        setDraftRole('')
+                        setStatus('')
+                        setRoleFilter('')
+                        setPage(1)
+                        close()
+                      }}
+                    >
+                      Reset
+                    </Button>
+                    <Button
+                      className="h-[32px] px-3"
+                      onClick={() => {
+                        setStatus(draftStatus)
+                        setRoleFilter(draftRole)
+                        setPage(1)
+                        close()
+                      }}
+                    >
+                      Apply
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </MenubarMenu>
+            <MenubarMenu id="others" label="Others" icon={MoreHorizontal} align="right">
+              <MenubarItem
+                label="Export Excel"
+                icon={FileSpreadsheet}
+                onClick={() =>
+                  toast.promise(exportUsersExcel({ search, status, role: roleFilter }), {
+                    loading: 'Exporting...',
+                    success: 'Excel file downloaded',
+                    error: 'Export failed',
+                  })
+                }
+              />
+              <MenubarItem
+                label="Export CSV"
+                icon={FileText}
+                onClick={() =>
+                  toast.promise(exportUsersCsv({ search, status, role: roleFilter }), {
+                    loading: 'Exporting...',
+                    success: 'CSV file downloaded',
+                    error: 'Export failed',
+                  })
+                }
+              />
+            </MenubarMenu>
+          </Menubar>
+        </div>
+      ),
+      [canCreate, status, roleFilter, draftStatus, draftRole, rolesData, search],
+    ),
+  )
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-text-primary">Users</h1>
-        {canCreate('users') && (
-          <Button
-            onClick={() => {
-              setEditing(null)
-              setFormOpen(true)
-            }}
-          >
-            <Plus size={16} /> Add User
-          </Button>
-        )}
-      </div>
-
       <Table
         columns={columns}
         data={data?.data || []}
