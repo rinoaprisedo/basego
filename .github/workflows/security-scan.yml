@@ -19,7 +19,14 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
       - run: go install golang.org/x/vuln/cmd/govulncheck@latest
+      # docs/ is gitignored (main.go imports it) — generate it first or the
+      # build fails with "could not import baseadmin/backend/docs" before
+      # govulncheck even gets to scan anything.
+      - run: go install github.com/swaggo/swag/cmd/swag@latest
+      - run: swag init -g main.go -o docs
+        working-directory: backend
       - run: govulncheck ./...
         working-directory: backend
 
