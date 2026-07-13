@@ -1,62 +1,64 @@
 package users
 
 import (
-	"time"
+	"errors"
 
 	"baseadmin/backend/config"
 	"baseadmin/backend/modules/activity_logs"
-	"baseadmin/backend/modules/roles"
 	"baseadmin/backend/storage"
 	"baseadmin/backend/utils"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
-	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
+// Handler is the HTTP layer for the users module: it binds/validates
+// requests, delegates business logic to Service, and shapes responses. It
+// holds no direct DB access — that lives in Repository via Service.
 type Handler struct {
-	DB      *gorm.DB
 	Cfg     *config.Config
-	Storage storage.StorageInterface
+	Service *Service
 }
 
 func NewHandler(db *gorm.DB, cfg *config.Config, s storage.StorageInterface) *Handler {
-	return &Handler{DB: db, Cfg: cfg, Storage: s}
+	return &Handler{
+		Cfg:     cfg,
+		Service: NewService(NewRepository(db), s),
+	}
 }
 
+// List godoc
+// @Summary		List users
+// @Tags			users
+// @Security		SessionCookie
+// @Param			page		query		int		false	"Page number"
+// @Param			limit		query		int		false	"Page size"
+// @Param			search		query		string	false	"Search by name/email"
+// @Param			status		query		string	false	"Filter by status"
+// @Param			role		query		string	false	"Filter by role UUID"
+// @Success		200			{object}	utils.Response
+// @Router			/users [get]
 func (h *Handler) List(c *gin.Context) {
 	p := utils.GetPagination(c, "created_at")
-	q := h.DB.Model(&User{}).Preload("Roles")
-
-	if p.Search != "" {
-		like := "%" + p.Search + "%"
-		q = q.Where("name ILIKE ? OR email ILIKE ?", like, like)
-	}
-	if status := c.Query("status"); status != "" {
-		q = q.Where("status = ?", status)
-	}
-	if roleUUID := c.Query("role"); roleUUID != "" {
-		q = q.Joins("JOIN user_roles ON user_roles.user_id = users.id").
-			Joins("JOIN roles ON roles.id = user_roles.role_id").
-			Where("roles.uuid = ?", roleUUID)
-	}
-
-	var total int64
-	q.Count(&total)
-
-	var list []User
-	if err := q.Order(p.SortBy + " " + p.SortDir).Offset(p.Offset).Limit(p.Limit).Find(&list).Error; err != nil {
+	list, total, err := h.Service.List(p, c.Query("status"), c.Query("role"))
+	if err != nil {
 		utils.Error(c, 500, "failed to fetch users")
 		return
 	}
-
 	utils.SuccessList(c, "ok", list, utils.BuildMeta(p.Page, p.Limit, total))
 }
 
+// Get godoc
+// @Summary		Get a user by UUID
+// @Tags			users
+// @Security		SessionCookie
+// @Param			uuid	path		string	true	"User UUID"
+// @Success		200		{object}	utils.Response
+// @Failure		404		{object}	utils.Response
+// @Router			/users/{uuid} [get]
 func (h *Handler) Get(c *gin.Context) {
-	var user User
-	if err := h.DB.Preload("Roles").Where("uuid = ?", c.Param("uuid")).First(&user).Error; err != nil {
+	user, err := h.Service.Get(c.Param("uuid"))
+	if err != nil {
 		utils.Error(c, 404, "user not found")
 		return
 	}
@@ -64,13 +66,21 @@ func (h *Handler) Get(c *gin.Context) {
 }
 
 type createRequest struct {
-	Name      string   `json:"name" binding:"required"`
-	Email     string   `json:"email" binding:"required,email"`
-	Password  string   `json:"password" binding:"required"`
-	Status    string   `json:"status"`
-	RoleUUIDs []string `json:"role_uuids"`
+	Name     string `json:"name" binding:"required"`
+	Email    string `json:"email" binding:"required,email"`
+	Password string `json:"password" binding:"required"`
+	Status   string `json:"status"`
+	RoleUUID string `json:"role_uuid"`
 }
 
+// Create godoc
+// @Summary		Create a user
+// @Tags			users
+// @Security		SessionCookie
+// @Param			body	body		createRequest	true	"User payload"
+// @Success		201		{object}	utils.Response
+// @Failure		400		{object}	utils.Response
+// @Router			/users [post]
 func (h *Handler) Create(c *gin.Context) {
 	var req createRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -78,111 +88,88 @@ func (h *Handler) Create(c *gin.Context) {
 		return
 	}
 
-	hashed, err := bcrypt.GenerateFromPassword([]byte(req.Password), 12)
-	if err != nil {
-		utils.Error(c, 500, "failed to hash password")
-		return
-	}
-
-	status := StatusActive
-	if req.Status != "" {
-		status = UserStatus(req.Status)
-	}
-
-	user := User{
+	actorID := utils.CurrentUserID(c)
+	user, err := h.Service.Create(CreateInput{
 		Name:     req.Name,
 		Email:    req.Email,
-		Password: string(hashed),
-		Status:   status,
-	}
-
-	actorID := utils.CurrentUserID(c)
-	user.CreatedBy = actorID
-
-	if err := h.DB.Create(&user).Error; err != nil {
-		utils.Error(c, 400, "failed to create user (email may already be in use)")
+		Password: req.Password,
+		Status:   req.Status,
+		RoleUUID: req.RoleUUID,
+		ActorID:  actorID,
+	})
+	if err != nil {
+		utils.Error(c, 400, err.Error())
 		return
-	}
-
-	if len(req.RoleUUIDs) > 0 {
-		h.assignRoles(&user, req.RoleUUIDs)
 	}
 
 	activity_logs.LogActivity(actorID, activity_logs.ActionCreate, "users", user.UUID.String(), nil, user, c.ClientIP(), c.Request.UserAgent())
 	utils.Success(c, 201, "user created", user)
 }
 
-func (h *Handler) assignRoles(user *User, roleUUIDs []string) {
-	var roleList []roles.Role
-	h.DB.Where("uuid IN ?", roleUUIDs).Find(&roleList)
-	h.DB.Model(user).Association("Roles").Replace(roleList)
-}
-
 type updateRequest struct {
-	Name      string   `json:"name"`
-	Email     string   `json:"email"`
-	Status    string   `json:"status"`
-	RoleUUIDs []string `json:"role_uuids"`
+	Name     string  `json:"name"`
+	Email    string  `json:"email"`
+	Status   string  `json:"status"`
+	RoleUUID *string `json:"role_uuid"`
 }
 
+// Update godoc
+// @Summary		Update a user
+// @Tags			users
+// @Security		SessionCookie
+// @Param			uuid	path		string			true	"User UUID"
+// @Param			body	body		updateRequest	true	"Fields to update"
+// @Success		200		{object}	utils.Response
+// @Failure		404		{object}	utils.Response
+// @Router			/users/{uuid} [put]
 func (h *Handler) Update(c *gin.Context) {
-	var user User
-	if err := h.DB.Preload("Roles").Where("uuid = ?", c.Param("uuid")).First(&user).Error; err != nil {
-		utils.Error(c, 404, "user not found")
-		return
-	}
-	oldValue := user
-
 	var req updateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.Error(c, 400, "invalid request payload")
 		return
 	}
 
-	if req.Name != "" {
-		user.Name = req.Name
-	}
-	if req.Email != "" {
-		user.Email = req.Email
-	}
-	if req.Status != "" {
-		user.Status = UserStatus(req.Status)
-	}
-
 	actorID := utils.CurrentUserID(c)
-	user.UpdatedBy = actorID
-
-	if err := h.DB.Save(&user).Error; err != nil {
+	in := UpdateInput{Name: req.Name, Email: req.Email, Status: req.Status, ActorID: actorID}
+	if req.RoleUUID != nil {
+		in.RoleProvided = true
+		in.RoleUUID = *req.RoleUUID
+	}
+	before, after, err := h.Service.Update(c.Param("uuid"), in)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			utils.Error(c, 404, "user not found")
+			return
+		}
 		utils.Error(c, 400, "failed to update user")
 		return
 	}
-	if req.RoleUUIDs != nil {
-		h.assignRoles(&user, req.RoleUUIDs)
-	}
 
-	activity_logs.LogActivity(actorID, activity_logs.ActionUpdate, "users", user.UUID.String(), oldValue, user, c.ClientIP(), c.Request.UserAgent())
-	utils.Success(c, 200, "user updated", user)
+	activity_logs.LogActivity(actorID, activity_logs.ActionUpdate, "users", after.UUID.String(), before, after, c.ClientIP(), c.Request.UserAgent())
+	utils.Success(c, 200, "user updated", after)
 }
 
+// Delete godoc
+// @Summary		Delete a user
+// @Tags			users
+// @Security		SessionCookie
+// @Param			uuid	path	string	true	"User UUID"
+// @Success		200		{object}	utils.Response
+// @Failure		403		{object}	utils.Response
+// @Failure		404		{object}	utils.Response
+// @Router			/users/{uuid} [delete]
 func (h *Handler) Delete(c *gin.Context) {
-	var user User
-	if err := h.DB.Preload("Roles").Where("uuid = ?", c.Param("uuid")).First(&user).Error; err != nil {
-		utils.Error(c, 404, "user not found")
-		return
-	}
-	for _, r := range user.Roles {
-		if r.IsSuperadmin {
-			utils.Error(c, 403, "superadmin user cannot be deleted")
-			return
-		}
-	}
-
 	actorID := utils.CurrentUserID(c)
-	if actorID != nil {
-		h.DB.Model(&user).Update("deleted_by", actorID)
-	}
-	if err := h.DB.Delete(&user).Error; err != nil {
-		utils.Error(c, 500, "failed to delete user")
+	user, err := h.Service.Delete(c.Param("uuid"), actorID)
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrNotFound):
+			utils.Error(c, 404, "user not found")
+		case errors.Is(err, ErrSuperadminLocked):
+			utils.Error(c, 403, "superadmin user cannot be deleted")
+		default:
+			utils.Error(c, 500, "failed to delete user")
+		}
 		return
 	}
 
@@ -194,40 +181,50 @@ type statusRequest struct {
 	Status string `json:"status" binding:"required"`
 }
 
+// UpdateStatus godoc
+// @Summary		Change a user's status
+// @Tags			users
+// @Security		SessionCookie
+// @Param			uuid	path		string			true	"User UUID"
+// @Param			body	body		statusRequest	true	"New status"
+// @Success		200		{object}	utils.Response
+// @Failure		403		{object}	utils.Response
+// @Router			/users/{uuid}/status [put]
 func (h *Handler) UpdateStatus(c *gin.Context) {
-	var user User
-	if err := h.DB.Preload("Roles").Where("uuid = ?", c.Param("uuid")).First(&user).Error; err != nil {
-		utils.Error(c, 404, "user not found")
-		return
-	}
-	for _, r := range user.Roles {
-		if r.IsSuperadmin {
-			utils.Error(c, 403, "superadmin status cannot be changed")
-			return
-		}
-	}
-
 	var req statusRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.Error(c, 400, "invalid request payload")
 		return
 	}
-	oldStatus := user.Status
-	user.Status = UserStatus(req.Status)
-	h.DB.Save(&user)
+
+	oldStatus, user, err := h.Service.UpdateStatus(c.Param("uuid"), req.Status)
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrNotFound):
+			utils.Error(c, 404, "user not found")
+		case errors.Is(err, ErrSuperadminLocked):
+			utils.Error(c, 403, "superadmin status cannot be changed")
+		default:
+			utils.Error(c, 500, "failed to update status")
+		}
+		return
+	}
 
 	actorID := utils.CurrentUserID(c)
 	activity_logs.LogActivity(actorID, activity_logs.ActionUpdate, "users", user.UUID.String(), gin.H{"status": oldStatus}, gin.H{"status": user.Status}, c.ClientIP(), c.Request.UserAgent())
 	utils.Success(c, 200, "status updated", user)
 }
 
+// UploadAvatar godoc
+// @Summary		Upload a user's avatar
+// @Tags			users
+// @Security		SessionCookie
+// @Param			uuid	path	string	true	"User UUID"
+// @Accept			multipart/form-data
+// @Param			avatar	formData	file	true	"Avatar image"
+// @Success		200		{object}	utils.Response
+// @Router			/users/{uuid}/avatar [post]
 func (h *Handler) UploadAvatar(c *gin.Context) {
-	var user User
-	if err := h.DB.Where("uuid = ?", c.Param("uuid")).First(&user).Error; err != nil {
-		utils.Error(c, 404, "user not found")
-		return
-	}
-
 	fileHeader, err := c.FormFile("avatar")
 	if err != nil {
 		utils.Error(c, 400, "avatar file is required")
@@ -240,39 +237,50 @@ func (h *Handler) UploadAvatar(c *gin.Context) {
 	}
 	defer file.Close()
 
-	path, err := h.Storage.Upload(file, fileHeader, "avatars")
+	url, err := h.Service.UploadAvatar(c.Param("uuid"), file, fileHeader)
 	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			utils.Error(c, 404, "user not found")
+			return
+		}
 		utils.Error(c, 400, err.Error())
 		return
 	}
-
-	user.Avatar = &path
-	h.DB.Save(&user)
-	utils.Success(c, 200, "avatar uploaded", gin.H{"avatar": h.Storage.GetURL(path)})
+	utils.Success(c, 200, "avatar uploaded", gin.H{"avatar": url})
 }
 
+// ListSessions godoc
+// @Summary		List a user's active sessions
+// @Tags			users
+// @Security		SessionCookie
+// @Param			uuid	path	string	true	"User UUID"
+// @Success		200		{object}	utils.Response
+// @Router			/users/{uuid}/sessions [get]
 func (h *Handler) ListSessions(c *gin.Context) {
-	var user User
-	if err := h.DB.Where("uuid = ?", c.Param("uuid")).First(&user).Error; err != nil {
+	sessionsList, err := h.Service.ListSessions(c.Param("uuid"))
+	if err != nil {
 		utils.Error(c, 404, "user not found")
 		return
 	}
-	var sessionsList []Session
-	h.DB.Where("user_id = ? AND expired_at > ?", user.ID, time.Now()).Find(&sessionsList)
 	utils.Success(c, 200, "ok", sessionsList)
 }
 
+// KickSession godoc
+// @Summary		Revoke a user's session
+// @Tags			users
+// @Security		SessionCookie
+// @Param			uuid			path	string	true	"User UUID"
+// @Param			session_uuid	path	string	true	"Session UUID"
+// @Success		200				{object}	utils.Response
+// @Router			/users/{uuid}/sessions/{session_uuid} [delete]
 func (h *Handler) KickSession(c *gin.Context) {
-	var user User
-	if err := h.DB.Where("uuid = ?", c.Param("uuid")).First(&user).Error; err != nil {
-		utils.Error(c, 404, "user not found")
-		return
-	}
-	if err := h.DB.Where("uuid = ? AND user_id = ?", c.Param("session_uuid"), user.ID).Delete(&Session{}).Error; err != nil {
+	if err := h.Service.KickSession(c.Param("uuid"), c.Param("session_uuid")); err != nil {
+		if errors.Is(err, ErrNotFound) {
+			utils.Error(c, 404, "user not found")
+			return
+		}
 		utils.Error(c, 500, "failed to remove session")
 		return
 	}
 	utils.Success(c, 200, "session removed", nil)
 }
-
-var _ = uuid.Nil

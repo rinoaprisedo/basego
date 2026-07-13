@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { getSettings } from '../api/settings'
+import { fileURL } from '../utils/url'
 
 const useSettingsStore = create((set) => ({
   appName: 'BaseAdmin',
@@ -9,15 +10,12 @@ const useSettingsStore = create((set) => ({
   fetchSettings: async () => {
     try {
       const res = await getSettings()
-      const list = Array.isArray(res.data) ? res.data : []
-      const map = {}
-      list.forEach((s) => {
-        map[s.key] = s.value
-      })
+      // GET /settings returns a { key: value } map directly, not an array.
+      const map = res.data || {}
       set({
         appName: map.app_name || 'BaseAdmin',
-        logo: map.app_logo || null,
-        favicon: map.app_favicon || null,
+        logo: fileURL(map.app_logo),
+        favicon: fileURL(map.app_favicon),
         maintenanceMode: map.maintenance_mode === 'true' || map.maintenance_mode === true,
       })
     } catch {

@@ -32,8 +32,8 @@ func SessionAuth(rdb *redis.Client, db *gorm.DB) gin.HandlerFunc {
 
 		var count int64
 		db.Table("roles").
-			Joins("JOIN user_roles ON user_roles.role_id = roles.id").
-			Where("user_roles.user_id = ? AND roles.is_superadmin = ?", data.UserID, true).
+			Joins("JOIN users ON users.role_id = roles.id").
+			Where("users.id = ? AND roles.is_superadmin = ?", data.UserID, true).
 			Count(&count)
 		isSuperadmin := count > 0
 

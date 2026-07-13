@@ -60,7 +60,6 @@ function Roles() {
       ),
     },
     { key: 'description', label: 'Description' },
-    { key: 'user_count', label: 'Users', render: (row) => row.user_count ?? '-' },
     {
       key: 'actions',
       label: '',
@@ -68,7 +67,7 @@ function Roles() {
         <div className="flex justify-end gap-1">
           <button
             onClick={() => navigate(`/roles/${row.uuid}/permissions`)}
-            className="rounded p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700"
+            className="rounded p-1.5 hover:bg-surface-hover"
             title="Permissions"
           >
             <ShieldCheck size={16} />
@@ -79,7 +78,7 @@ function Roles() {
                 setEditing(row)
                 setFormOpen(true)
               }}
-              className="rounded p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700"
+              className="rounded p-1.5 hover:bg-surface-hover"
               title="Edit"
             >
               <Pencil size={16} />
@@ -98,7 +97,7 @@ function Roles() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-text-primary dark:text-slate-100">Roles</h1>
+        <h1 className="text-xl font-bold text-text-primary">Roles</h1>
         {canCreate('roles') && (
           <Button
             onClick={() => {

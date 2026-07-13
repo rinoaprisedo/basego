@@ -29,7 +29,7 @@ function ResetPassword() {
 
   return (
     <div>
-      <h2 className="mb-4 text-center text-lg font-semibold text-text-primary dark:text-slate-100">
+      <h2 className="mb-4 text-center text-lg font-semibold text-text-primary">
         Reset password
       </h2>
       {!token && <p className="mb-3 text-center text-sm text-danger">Missing or invalid token.</p>}

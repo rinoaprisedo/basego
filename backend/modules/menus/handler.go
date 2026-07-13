@@ -1,61 +1,52 @@
 package menus
 
 import (
+	"errors"
+
 	"baseadmin/backend/modules/activity_logs"
-	"baseadmin/backend/modules/menu_sections"
 	"baseadmin/backend/utils"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
+// Handler is the HTTP layer for the menus module.
 type Handler struct {
-	DB *gorm.DB
+	Service *Service
 }
 
 func NewHandler(db *gorm.DB) *Handler {
-	return &Handler{DB: db}
+	return &Handler{Service: NewService(NewRepository(db))}
 }
 
-type sectionWithMenus struct {
-	menu_sections.MenuSection
-	Menus []Menu `json:"menus"`
-}
-
-// List returns menus grouped as a tree by section, per spec.
+// List godoc
+// @Summary		List menus grouped by section
+// @Tags			menus
+// @Security		SessionCookie
+// @Param			is_active	query		string	false	"Filter by active state"
+// @Param			section		query		string	false	"Filter by section UUID"
+// @Success		200			{object}	utils.Response
+// @Router			/menus [get]
 func (h *Handler) List(c *gin.Context) {
-	var sections []menu_sections.MenuSection
-	h.DB.Order("\"order\" asc").Find(&sections)
-
-	q := h.DB.Model(&Menu{}).Order("\"order\" asc")
-	if isActive := c.Query("is_active"); isActive != "" {
-		q = q.Where("is_active = ?", isActive == "true")
-	}
-	if sectionUUID := c.Query("section"); sectionUUID != "" {
-		var sec menu_sections.MenuSection
-		if h.DB.Where("uuid = ?", sectionUUID).First(&sec).Error == nil {
-			q = q.Where("menu_section_id = ?", sec.ID)
-		}
-	}
-	var allMenus []Menu
-	q.Find(&allMenus)
-
-	result := make([]sectionWithMenus, 0, len(sections))
-	for _, s := range sections {
-		item := sectionWithMenus{MenuSection: s, Menus: []Menu{}}
-		for _, m := range allMenus {
-			if m.MenuSectionID == s.ID {
-				item.Menus = append(item.Menus, m)
-			}
-		}
-		result = append(result, item)
+	result, err := h.Service.Tree(c.Query("is_active"), c.Query("section"))
+	if err != nil {
+		utils.Error(c, 500, "failed to fetch menus")
+		return
 	}
 	utils.Success(c, 200, "ok", result)
 }
 
+// Get godoc
+// @Summary		Get a menu
+// @Tags			menus
+// @Security		SessionCookie
+// @Param			uuid	path		string	true	"Menu UUID"
+// @Success		200		{object}	utils.Response
+// @Failure		404		{object}	utils.Response
+// @Router			/menus/{uuid} [get]
 func (h *Handler) Get(c *gin.Context) {
-	var menu Menu
-	if err := h.DB.Where("uuid = ?", c.Param("uuid")).First(&menu).Error; err != nil {
+	menu, err := h.Service.Get(c.Param("uuid"))
+	if err != nil {
 		utils.Error(c, 404, "menu not found")
 		return
 	}
@@ -71,29 +62,39 @@ type menuRequest struct {
 	IsActive        bool   `json:"is_active"`
 }
 
-func (h *Handler) resolveSectionID(uuidStr string) (uint64, error) {
-	var section menu_sections.MenuSection
-	if err := h.DB.Where("uuid = ?", uuidStr).First(&section).Error; err != nil {
-		return 0, err
+func toMenuInput(req menuRequest, actorID *uint64) MenuInput {
+	return MenuInput{
+		MenuSectionUUID: req.MenuSectionUUID,
+		Name:            req.Name,
+		Icon:            req.Icon,
+		Path:            req.Path,
+		Order:           req.Order,
+		IsActive:        req.IsActive,
+		ActorID:         actorID,
 	}
-	return section.ID, nil
 }
 
+// Create godoc
+// @Summary		Create a menu
+// @Tags			menus
+// @Security		SessionCookie
+// @Param			body	body		menuRequest	true	"Menu payload"
+// @Success		201		{object}	utils.Response
+// @Failure		400		{object}	utils.Response
+// @Router			/menus [post]
 func (h *Handler) Create(c *gin.Context) {
 	var req menuRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.Error(c, 400, "invalid request payload")
 		return
 	}
-	sectionID, err := h.resolveSectionID(req.MenuSectionUUID)
-	if err != nil {
-		utils.Error(c, 400, "invalid menu_section_uuid")
-		return
-	}
-	menu := Menu{MenuSectionID: sectionID, Name: req.Name, Icon: req.Icon, Path: req.Path, Order: req.Order, IsActive: req.IsActive}
 	actorID := utils.CurrentUserID(c)
-	menu.CreatedBy = actorID
-	if err := h.DB.Create(&menu).Error; err != nil {
+	menu, err := h.Service.Create(toMenuInput(req, actorID))
+	if err != nil {
+		if errors.Is(err, ErrInvalidSectionRef) {
+			utils.Error(c, 400, "invalid menu_section_uuid")
+			return
+		}
 		utils.Error(c, 400, "failed to create menu")
 		return
 	}
@@ -101,51 +102,53 @@ func (h *Handler) Create(c *gin.Context) {
 	utils.Success(c, 201, "menu created", menu)
 }
 
+// Update godoc
+// @Summary		Update a menu
+// @Tags			menus
+// @Security		SessionCookie
+// @Param			uuid	path		string		true	"Menu UUID"
+// @Param			body	body		menuRequest	true	"Menu payload"
+// @Success		200		{object}	utils.Response
+// @Failure		404		{object}	utils.Response
+// @Router			/menus/{uuid} [put]
 func (h *Handler) Update(c *gin.Context) {
-	var menu Menu
-	if err := h.DB.Where("uuid = ?", c.Param("uuid")).First(&menu).Error; err != nil {
-		utils.Error(c, 404, "menu not found")
-		return
-	}
-	oldValue := menu
-
 	var req menuRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.Error(c, 400, "invalid request payload")
 		return
 	}
-	if req.MenuSectionUUID != "" {
-		sectionID, err := h.resolveSectionID(req.MenuSectionUUID)
-		if err != nil {
-			utils.Error(c, 400, "invalid menu_section_uuid")
-			return
-		}
-		menu.MenuSectionID = sectionID
-	}
-	menu.Name = req.Name
-	menu.Icon = req.Icon
-	menu.Path = req.Path
-	menu.Order = req.Order
-	menu.IsActive = req.IsActive
-
 	actorID := utils.CurrentUserID(c)
-	menu.UpdatedBy = actorID
-	h.DB.Save(&menu)
-	activity_logs.LogActivity(actorID, activity_logs.ActionUpdate, "menus", menu.UUID.String(), oldValue, menu, c.ClientIP(), c.Request.UserAgent())
-	utils.Success(c, 200, "menu updated", menu)
+	before, after, err := h.Service.Update(c.Param("uuid"), toMenuInput(req, actorID))
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrNotFound):
+			utils.Error(c, 404, "menu not found")
+		case errors.Is(err, ErrInvalidSectionRef):
+			utils.Error(c, 400, "invalid menu_section_uuid")
+		default:
+			utils.Error(c, 400, "failed to update menu")
+		}
+		return
+	}
+	activity_logs.LogActivity(actorID, activity_logs.ActionUpdate, "menus", after.UUID.String(), before, after, c.ClientIP(), c.Request.UserAgent())
+	utils.Success(c, 200, "menu updated", after)
 }
 
+// Delete godoc
+// @Summary		Delete a menu
+// @Tags			menus
+// @Security		SessionCookie
+// @Param			uuid	path	string	true	"Menu UUID"
+// @Success		200		{object}	utils.Response
+// @Failure		404		{object}	utils.Response
+// @Router			/menus/{uuid} [delete]
 func (h *Handler) Delete(c *gin.Context) {
-	var menu Menu
-	if err := h.DB.Where("uuid = ?", c.Param("uuid")).First(&menu).Error; err != nil {
+	actorID := utils.CurrentUserID(c)
+	menu, err := h.Service.Delete(c.Param("uuid"), actorID)
+	if err != nil {
 		utils.Error(c, 404, "menu not found")
 		return
 	}
-	actorID := utils.CurrentUserID(c)
-	if actorID != nil {
-		h.DB.Model(&menu).Update("deleted_by", actorID)
-	}
-	h.DB.Delete(&menu)
 	activity_logs.LogActivity(actorID, activity_logs.ActionDelete, "menus", menu.UUID.String(), menu, nil, c.ClientIP(), c.Request.UserAgent())
 	utils.Success(c, 200, "menu deleted", nil)
 }
@@ -155,14 +158,23 @@ type reorderItem struct {
 	Order int    `json:"order"`
 }
 
+// Reorder godoc
+// @Summary		Reorder menus
+// @Tags			menus
+// @Security		SessionCookie
+// @Param			body	body		[]reorderItem	true	"Ordered list of menu UUIDs"
+// @Success		200		{object}	utils.Response
+// @Router			/menus/reorder [put]
 func (h *Handler) Reorder(c *gin.Context) {
 	var items []reorderItem
 	if err := c.ShouldBindJSON(&items); err != nil {
 		utils.Error(c, 400, "invalid request payload")
 		return
 	}
+	serviceItems := make([]ReorderItem, 0, len(items))
 	for _, item := range items {
-		h.DB.Model(&Menu{}).Where("uuid = ?", item.UUID).Update("order", item.Order)
+		serviceItems = append(serviceItems, ReorderItem{UUID: item.UUID, Order: item.Order})
 	}
+	h.Service.Reorder(serviceItems)
 	utils.Success(c, 200, "reordered", nil)
 }

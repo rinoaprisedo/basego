@@ -82,9 +82,9 @@ function Users() {
       render: (row) => <Badge variant={statusVariant[row.status] || 'neutral'}>{row.status}</Badge>,
     },
     {
-      key: 'roles',
-      label: 'Roles',
-      render: (row) => (row.roles || []).map((r) => r.name).join(', ') || '-',
+      key: 'role',
+      label: 'Role',
+      render: (row) => row.role?.name || '-',
     },
     {
       key: 'last_login_at',
@@ -97,7 +97,7 @@ function Users() {
       label: '',
       render: (row) => (
         <div className="flex justify-end gap-1">
-          <button onClick={() => setSessionsUser(row)} className="rounded p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700" title="Sessions">
+          <button onClick={() => setSessionsUser(row)} className="rounded p-1.5 hover:bg-surface-hover" title="Sessions">
             <KeyRound size={16} />
           </button>
           {canEdit('users') && (
@@ -106,7 +106,7 @@ function Users() {
                 setEditing(row)
                 setFormOpen(true)
               }}
-              className="rounded p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700"
+              className="rounded p-1.5 hover:bg-surface-hover"
               title="Edit"
             >
               <Pencil size={16} />
@@ -125,7 +125,7 @@ function Users() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-text-primary dark:text-slate-100">Users</h1>
+        <h1 className="text-xl font-bold text-text-primary">Users</h1>
         {canCreate('users') && (
           <Button
             onClick={() => {

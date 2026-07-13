@@ -18,13 +18,17 @@ const (
 type User struct {
 	utils.AuditModel
 	Name        string     `gorm:"type:varchar(255);not null" json:"name"`
-	Email       string     `gorm:"type:varchar(255);uniqueIndex;not null" json:"email"`
+	// Uniqueness on email is enforced by a partial index (WHERE deleted_at IS
+	// NULL) created in migrations, not by this tag — a plain uniqueIndex would
+	// block re-using an email after the row holding it is soft-deleted.
+	Email       string     `gorm:"type:varchar(255);index;not null" json:"email"`
 	Password    string     `gorm:"type:varchar(255);not null" json:"-"`
 	Avatar      *string    `gorm:"type:varchar(255)" json:"avatar"`
 	Status      UserStatus `gorm:"type:varchar(20);default:active" json:"status"`
 	LastLoginAt *time.Time `json:"last_login_at"`
 
-	Roles []roles.Role `gorm:"many2many:user_roles;joinForeignKey:UserID;joinReferences:RoleID" json:"roles,omitempty"`
+	RoleID *uint64     `gorm:"index" json:"-"`
+	Role   *roles.Role `gorm:"foreignKey:RoleID" json:"role,omitempty"`
 }
 
 func (User) TableName() string { return "users" }

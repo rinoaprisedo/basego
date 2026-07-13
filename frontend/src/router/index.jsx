@@ -58,7 +58,7 @@ function AppRouter() {
         <Route
           path="/menu-sections"
           element={
-            <ProtectedRoute menuKey="menu_sections">
+            <ProtectedRoute menuKey="menu-sections">
               <MenuSections />
             </ProtectedRoute>
           }
@@ -90,7 +90,7 @@ function AppRouter() {
         <Route
           path="/activity-logs"
           element={
-            <ProtectedRoute menuKey="activity_logs">
+            <ProtectedRoute menuKey="activity-logs">
               <ActivityLogs />
             </ProtectedRoute>
           }

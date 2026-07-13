@@ -53,9 +53,9 @@ function ActivityLogs() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-bold text-text-primary dark:text-slate-100">Activity Logs</h1>
+      <h1 className="text-xl font-bold text-text-primary">Activity Logs</h1>
 
-      <div className="grid grid-cols-2 gap-3 rounded-lg border border-surface-border bg-surface-card p-4 dark:bg-slate-800 dark:border-slate-700 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 rounded-lg border border-surface-border bg-surface-card p-4 sm:grid-cols-4">
         <Select label="Action" value={action} onChange={(e) => setAction(e.target.value)}>
           <option value="">All</option>
           {['create', 'update', 'delete', 'login', 'logout', 'view'].map((a) => (

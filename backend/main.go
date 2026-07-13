@@ -9,6 +9,8 @@
 // @securityDefinitions.apikey	SessionCookie
 // @in							cookie
 // @name						session
+//
+//go:generate swag init -g main.go -o docs
 package main
 
 import (
@@ -19,6 +21,7 @@ import (
 	"baseadmin/backend/config"
 	"baseadmin/backend/database/migrations"
 	"baseadmin/backend/database/seeders"
+	_ "baseadmin/backend/docs"
 	"baseadmin/backend/middleware"
 	"baseadmin/backend/modules/activity_logs"
 	"baseadmin/backend/modules/auth"
@@ -28,8 +31,11 @@ import (
 	"baseadmin/backend/modules/settings"
 	"baseadmin/backend/modules/users"
 	"baseadmin/backend/storage"
+	"baseadmin/backend/utils"
 
 	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 func main() {
@@ -79,6 +85,18 @@ func main() {
 			middleware.RequirePermission(db, menuPath, action)(c)
 		}
 	}
+	requireSuperadmin := func(c *gin.Context) {
+		if !utils.IsSuperadmin(c) {
+			utils.Error(c, 403, "superadmin access required")
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
+
+	if cfg.AppEnv != "production" {
+		router.GET("/swagger/*any", sessionAuth, requireSuperadmin, ginSwagger.WrapHandler(swaggerFiles.Handler))
+	}
 	uploadLimiter := middleware.RateLimit(rdb, "upload", 10, time.Minute, func(c *gin.Context) string {
 		return c.ClientIP()
 	})
@@ -95,7 +113,7 @@ func main() {
 	rolesHandler.RegisterRoutes(api, guard)
 
 	menusHandler := menus.NewHandler(db)
-	menusHandler.RegisterRoutes(api, guard)
+	menusHandler.RegisterRoutes(api, sessionAuth, guard)
 
 	menuSectionsHandler := menu_sections.NewHandler(db)
 	menuSectionsHandler.RegisterRoutes(api, guard)

@@ -6,7 +6,7 @@ function AuthLayout() {
   const logo = useSettingsStore((s) => s.logo)
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-surface-bg px-4 dark:bg-slate-900">
+    <div className="flex min-h-screen items-center justify-center bg-surface-bg px-4">
       <div className="w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center gap-2">
           {logo ? (
@@ -16,9 +16,9 @@ function AuthLayout() {
               {appName.charAt(0)}
             </div>
           )}
-          <h1 className="text-xl font-bold text-text-primary dark:text-slate-100">{appName}</h1>
+          <h1 className="text-[22px] font-semibold tracking-[-.02em] text-text-primary">{appName}</h1>
         </div>
-        <div className="rounded-lg border border-surface-border bg-surface-card p-6 shadow-sm dark:bg-slate-800 dark:border-slate-700">
+        <div className="rounded-xl border border-surface-border bg-surface-card p-[44px_48px] shadow-md">
           <Outlet />
         </div>
       </div>

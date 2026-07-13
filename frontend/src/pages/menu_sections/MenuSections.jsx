@@ -1,12 +1,18 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { Plus, Pencil, Trash2 } from 'lucide-react'
+import { Plus, Pencil, Trash2, ArrowUp, ArrowDown } from 'lucide-react'
 import Table from '../../components/ui/Table'
 import Button from '../../components/ui/Button'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import MenuSectionFormModal from './MenuSectionFormModal'
-import { getMenuSections, createMenuSection, updateMenuSection, deleteMenuSection } from '../../api/menuSections'
+import {
+  getMenuSections,
+  createMenuSection,
+  updateMenuSection,
+  deleteMenuSection,
+  reorderMenuSections,
+} from '../../api/menuSections'
 import usePermission from '../../hooks/usePermission'
 
 function MenuSections() {
@@ -39,6 +45,25 @@ function MenuSections() {
     onError: (err) => toast.error(err.response?.data?.message || 'Delete failed'),
   })
 
+  const reorderMutation = useMutation({
+    mutationFn: (payload) => reorderMenuSections(payload),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['menu-sections'] }),
+    onError: (err) => toast.error(err.response?.data?.message || 'Reorder failed'),
+  })
+
+  const sections = data?.data || []
+
+  const move = (index, dir) => {
+    const swapIndex = index + dir
+    if (swapIndex < 0 || swapIndex >= sections.length) return
+    const a = sections[index]
+    const b = sections[swapIndex]
+    reorderMutation.mutate([
+      { uuid: a.uuid, order: b.order },
+      { uuid: b.uuid, order: a.order },
+    ])
+  }
+
   const columns = [
     { key: 'name', label: 'Name' },
     { key: 'icon', label: 'Icon' },
@@ -47,20 +72,26 @@ function MenuSections() {
     {
       key: 'actions',
       label: '',
-      render: (row) => (
+      render: (row, i) => (
         <div className="flex justify-end gap-1">
-          {canEdit('menu_sections') && (
+          <button onClick={() => move(i, -1)} disabled={i === 0} className="rounded p-1.5 hover:bg-surface-hover disabled:opacity-30">
+            <ArrowUp size={14} />
+          </button>
+          <button onClick={() => move(i, 1)} disabled={i === sections.length - 1} className="rounded p-1.5 hover:bg-surface-hover disabled:opacity-30">
+            <ArrowDown size={14} />
+          </button>
+          {canEdit('menu-sections') && (
             <button
               onClick={() => {
                 setEditing(row)
                 setFormOpen(true)
               }}
-              className="rounded p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700"
+              className="rounded p-1.5 hover:bg-surface-hover"
             >
               <Pencil size={16} />
             </button>
           )}
-          {canDelete('menu_sections') && (
+          {canDelete('menu-sections') && (
             <button onClick={() => setDeleting(row)} className="rounded p-1.5 text-danger hover:bg-danger/10">
               <Trash2 size={16} />
             </button>
@@ -73,8 +104,8 @@ function MenuSections() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-text-primary dark:text-slate-100">Menu Sections</h1>
-        {canCreate('menu_sections') && (
+        <h1 className="text-xl font-bold text-text-primary">Menu Sections</h1>
+        {canCreate('menu-sections') && (
           <Button
             onClick={() => {
               setEditing(null)

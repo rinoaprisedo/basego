@@ -5,6 +5,7 @@ import Input from '../../components/ui/Input'
 import Button from '../../components/ui/Button'
 import Skeleton from '../../components/ui/Skeleton'
 import { getSettings, updateSettings, uploadSetting } from '../../api/settings'
+import { fileURL } from '../../utils/url'
 
 const tabs = ['General', 'Appearance', 'Maintenance']
 
@@ -20,14 +21,12 @@ function Settings() {
 
   useEffect(() => {
     if (data?.data) {
-      const map = {}
-      data.data.forEach((s) => {
-        map[s.key] = s.value
-      })
+      // GET /settings returns a { key: value } map directly, not an array.
+      const map = data.data
       setAppName(map.app_name || '')
       setMaintenance(map.maintenance_mode === 'true' || map.maintenance_mode === true)
-      setLogoPreview(map.app_logo || null)
-      setFaviconPreview(map.app_favicon || null)
+      setLogoPreview(fileURL(map.app_logo))
+      setFaviconPreview(fileURL(map.app_favicon))
     }
   }, [data])
 
@@ -54,7 +53,7 @@ function Settings() {
     if (!file) return
     const formData = new FormData()
     formData.append('file', file)
-    formData.append('key', key)
+    formData.append('target', key)
     uploadMutation.mutate(formData)
     const reader = new FileReader()
     reader.onload = () => (key === 'app_logo' ? setLogoPreview(reader.result) : setFaviconPreview(reader.result))
@@ -65,9 +64,9 @@ function Settings() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-bold text-text-primary dark:text-slate-100">Settings</h1>
+      <h1 className="text-xl font-bold text-text-primary">Settings</h1>
 
-      <div className="flex gap-1 border-b border-surface-border dark:border-slate-700">
+      <div className="flex gap-1 border-b border-surface-border">
         {tabs.map((t) => (
           <button
             key={t}
@@ -81,7 +80,7 @@ function Settings() {
         ))}
       </div>
 
-      <div className="rounded-lg border border-surface-border bg-surface-card p-6 dark:bg-slate-800 dark:border-slate-700">
+      <div className="rounded-lg border border-surface-border bg-surface-card p-6">
         {tab === 'General' && (
           <div className="max-w-md space-y-4">
             <Input label="App Name" value={appName} onChange={(e) => setAppName(e.target.value)} />
@@ -94,12 +93,12 @@ function Settings() {
         {tab === 'Appearance' && (
           <div className="max-w-md space-y-6">
             <div>
-              <p className="mb-2 text-sm font-medium text-text-primary dark:text-slate-200">Logo</p>
+              <p className="mb-2 text-sm font-medium text-text-primary">Logo</p>
               {logoPreview && <img src={logoPreview} alt="logo" className="mb-2 h-16 w-16 object-contain" />}
               <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleFileChange('app_logo')} />
             </div>
             <div>
-              <p className="mb-2 text-sm font-medium text-text-primary dark:text-slate-200">Favicon</p>
+              <p className="mb-2 text-sm font-medium text-text-primary">Favicon</p>
               {faviconPreview && <img src={faviconPreview} alt="favicon" className="mb-2 h-8 w-8 object-contain" />}
               <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleFileChange('app_favicon')} />
             </div>
@@ -115,7 +114,7 @@ function Settings() {
                 onChange={(e) => setMaintenance(e.target.checked)}
                 className="h-4 w-4 accent-primary"
               />
-              <span className="text-sm text-text-primary dark:text-slate-200">Enable maintenance mode</span>
+              <span className="text-sm text-text-primary">Enable maintenance mode</span>
             </label>
             <Button
               onClick={() => saveMutation.mutate({ maintenance_mode: maintenance })}

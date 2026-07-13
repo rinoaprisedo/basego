@@ -29,7 +29,7 @@ export const userSchema = z.object({
   email: z.string().email('Enter a valid email'),
   password: z.string().optional().or(z.literal('')),
   status: z.enum(['active', 'inactive', 'suspended']),
-  role_id: z.union([z.string(), z.number()]).optional(),
+  role_uuid: z.string().optional().or(z.literal('')),
 })
 
 export const roleSchema = z.object({
@@ -47,7 +47,7 @@ export const menuSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   icon: z.string().optional().or(z.literal('')),
   path: z.string().min(1, 'Path is required'),
-  menu_section_id: z.union([z.string(), z.number()]).optional(),
+  menu_section_uuid: z.string().min(1, 'Section is required'),
   order: z.union([z.string(), z.number()]).optional(),
   is_active: z.boolean().optional(),
 })

@@ -37,7 +37,7 @@ function Login() {
 
   return (
     <div>
-      <h2 className="mb-4 text-center text-lg font-semibold text-text-primary dark:text-slate-100">
+      <h2 className="mb-4 text-center text-lg font-semibold text-text-primary">
         Sign in to your account
       </h2>
       <form className="flex flex-col gap-4" onSubmit={handleSubmit((data) => mutation.mutate(data))}>

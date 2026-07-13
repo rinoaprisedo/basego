@@ -37,11 +37,11 @@ function UserSessionsModal({ open, onClose, user }) {
       ) : sessions.length === 0 ? (
         <EmptyState title="No active sessions" />
       ) : (
-        <ul className="divide-y divide-surface-border dark:divide-slate-700">
+        <ul className="divide-y divide-surface-border">
           {sessions.map((s) => (
             <li key={s.uuid} className="flex items-center justify-between py-3">
               <div className="text-sm">
-                <p className="font-medium text-text-primary dark:text-slate-100">{s.ip_address}</p>
+                <p className="font-medium text-text-primary">{s.ip_address}</p>
                 <p className="text-text-secondary">{s.user_agent}</p>
                 <p className="text-xs text-text-secondary">
                   Expires {s.expired_at ? format(new Date(s.expired_at), 'PP p') : '-'}

@@ -1,8 +1,6 @@
 package settings
 
 import (
-	"context"
-
 	"baseadmin/backend/modules/activity_logs"
 	"baseadmin/backend/storage"
 	"baseadmin/backend/utils"
@@ -12,26 +10,37 @@ import (
 	"gorm.io/gorm"
 )
 
+// Handler is the HTTP layer for the settings module.
 type Handler struct {
-	DB      *gorm.DB
-	Redis   *redis.Client
-	Storage storage.StorageInterface
+	Service *Service
 }
 
 func NewHandler(db *gorm.DB, rdb *redis.Client, s storage.StorageInterface) *Handler {
-	return &Handler{DB: db, Redis: rdb, Storage: s}
+	return &Handler{Service: NewService(NewRepository(db), rdb, s)}
 }
 
+// List godoc
+// @Summary		List all settings as a key/value map
+// @Tags			settings
+// @Security		SessionCookie
+// @Success		200	{object}	utils.Response
+// @Router			/settings [get]
 func (h *Handler) List(c *gin.Context) {
-	var list []Setting
-	h.DB.Find(&list)
-	result := make(map[string]string, len(list))
-	for _, s := range list {
-		result[s.Key] = s.Value
+	result, err := h.Service.List()
+	if err != nil {
+		utils.Error(c, 500, "failed to fetch settings")
+		return
 	}
 	utils.Success(c, 200, "ok", result)
 }
 
+// BulkUpdate godoc
+// @Summary		Upsert multiple settings
+// @Tags			settings
+// @Security		SessionCookie
+// @Param			body	body		map[string]string	true	"Key/value settings payload"
+// @Success		200		{object}	utils.Response
+// @Router			/settings [put]
 func (h *Handler) BulkUpdate(c *gin.Context) {
 	var payload map[string]string
 	if err := c.ShouldBindJSON(&payload); err != nil {
@@ -39,21 +48,9 @@ func (h *Handler) BulkUpdate(c *gin.Context) {
 		return
 	}
 
-	for key, value := range payload {
-		var setting Setting
-		result := h.DB.Where("key = ?", key).First(&setting)
-		if result.Error != nil {
-			setting = Setting{Key: key, Value: value, Type: TypeString}
-			h.DB.Create(&setting)
-		} else {
-			setting.Value = value
-			h.DB.Save(&setting)
-		}
-	}
-
-	// Invalidate the maintenance-mode cache immediately if it changed.
-	if _, ok := payload["maintenance_mode"]; ok {
-		h.Redis.Del(context.Background(), "settings:maintenance_mode")
+	if err := h.Service.BulkUpdate(payload); err != nil {
+		utils.Error(c, 500, "failed to update settings")
+		return
 	}
 
 	actorID := utils.CurrentUserID(c)
@@ -61,12 +58,18 @@ func (h *Handler) BulkUpdate(c *gin.Context) {
 	utils.Success(c, 200, "settings updated", nil)
 }
 
+// Upload godoc
+// @Summary		Upload app logo or favicon
+// @Tags			settings
+// @Security		SessionCookie
+// @Accept			multipart/form-data
+// @Param			target	formData	string	true	"app_logo or app_favicon"
+// @Param			file	formData	file	true	"Image file"
+// @Success		200		{object}	utils.Response
+// @Failure		400		{object}	utils.Response
+// @Router			/settings/upload [post]
 func (h *Handler) Upload(c *gin.Context) {
-	target := c.PostForm("target") // "app_logo" or "app_favicon"
-	if target != "app_logo" && target != "app_favicon" {
-		utils.Error(c, 400, "target must be app_logo or app_favicon")
-		return
-	}
+	target := c.PostForm("target")
 
 	fileHeader, err := c.FormFile("file")
 	if err != nil {
@@ -80,21 +83,10 @@ func (h *Handler) Upload(c *gin.Context) {
 	}
 	defer file.Close()
 
-	path, err := h.Storage.Upload(file, fileHeader, "settings")
+	url, err := h.Service.Upload(target, file, fileHeader)
 	if err != nil {
 		utils.Error(c, 400, err.Error())
 		return
 	}
-
-	var setting Setting
-	result := h.DB.Where("key = ?", target).First(&setting)
-	if result.Error != nil {
-		setting = Setting{Key: target, Value: path, Type: TypeFile}
-		h.DB.Create(&setting)
-	} else {
-		setting.Value = path
-		h.DB.Save(&setting)
-	}
-
-	utils.Success(c, 200, "file uploaded", gin.H{"url": h.Storage.GetURL(path)})
+	utils.Success(c, 200, "file uploaded", gin.H{"url": url})
 }

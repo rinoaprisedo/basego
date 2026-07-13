@@ -24,9 +24,9 @@ function UserFormModal({ open, onClose, onSubmit, initialData, roles = [], loadi
               email: initialData.email,
               status: initialData.status || 'active',
               password: '',
-              role_id: initialData.roles?.[0]?.id || '',
+              role_uuid: initialData.role?.uuid || '',
             }
-          : { name: '', email: '', password: '', status: 'active', role_id: '' },
+          : { name: '', email: '', password: '', status: 'active', role_uuid: '' },
       )
     }
   }, [open, initialData, reset])
@@ -47,10 +47,10 @@ function UserFormModal({ open, onClose, onSubmit, initialData, roles = [], loadi
           <option value="inactive">Inactive</option>
           <option value="suspended">Suspended</option>
         </Select>
-        <Select label="Role" error={errors.role_id?.message} {...register('role_id')}>
+        <Select label="Role" error={errors.role_uuid?.message} {...register('role_uuid')}>
           <option value="">Select role</option>
           {roles.map((r) => (
-            <option key={r.id || r.uuid} value={r.id}>
+            <option key={r.uuid} value={r.uuid}>
               {r.name}
             </option>
           ))}

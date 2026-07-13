@@ -3,9 +3,21 @@
 @tailwind utilities;
 
 html {
-  font-family: 'Inter', sans-serif;
+  font-family: 'DM Sans', sans-serif;
 }
 
 body {
   @apply bg-surface-bg text-text-primary dark:bg-slate-900 dark:text-slate-100;
+  line-height: 1.5;
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cccbc3;
+  border-radius: 4px;
 }

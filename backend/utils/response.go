@@ -1,6 +1,15 @@
 package utils
 
-import "github.com/gin-gonic/gin"
+import (
+	"regexp"
+
+	"github.com/gin-gonic/gin"
+)
+
+// sortColumnRe allows only column identifiers (letters, digits, underscore,
+// optional single dot for table-qualified names) to prevent SQL injection via
+// the sort_by query param, which callers interpolate directly into ORDER BY.
+var sortColumnRe = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?$`)
 
 type Meta struct {
 	Page       int   `json:"page"`
@@ -56,6 +65,9 @@ func GetPagination(c *gin.Context, defaultSort string) Pagination {
 		limit = 10
 	}
 	sortBy := c.DefaultQuery("sort_by", defaultSort)
+	if !sortColumnRe.MatchString(sortBy) {
+		sortBy = defaultSort
+	}
 	sortDir := c.DefaultQuery("sort_dir", "desc")
 	if sortDir != "asc" && sortDir != "desc" {
 		sortDir = "desc"

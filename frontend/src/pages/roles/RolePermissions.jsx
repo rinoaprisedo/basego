@@ -6,6 +6,8 @@ import { ArrowLeft } from 'lucide-react'
 import Button from '../../components/ui/Button'
 import Skeleton from '../../components/ui/Skeleton'
 import { getRole, getRolePermissions, updateRolePermissions } from '../../api/roles'
+import { getMenus } from '../../api/menus'
+import useBreadcrumbStore from '../../store/breadcrumbStore'
 
 const fields = [
   { key: 'can_view', label: 'View' },
@@ -19,29 +21,50 @@ function RolePermissions() {
   const navigate = useNavigate()
   const [matrix, setMatrix] = useState({})
 
+  const setLabel = useBreadcrumbStore((s) => s.setLabel)
   const { data: role } = useQuery({ queryKey: ['roles', uuid], queryFn: () => getRole(uuid) })
-  const { data: permsData, isLoading } = useQuery({
+  const roleName = role?.data?.role?.name
+
+  useEffect(() => {
+    if (roleName) setLabel(uuid, roleName)
+  }, [uuid, roleName, setLabel])
+  // Full menu catalog — the matrix always shows every menu, not just ones
+  // that already have a saved permission row.
+  const { data: menusData, isLoading: menusLoading } = useQuery({
+    queryKey: ['menus', 'tree'],
+    queryFn: () => getMenus(),
+  })
+  const { data: permsData, isLoading: permsLoading } = useQuery({
     queryKey: ['roles', uuid, 'permissions'],
     queryFn: () => getRolePermissions(uuid),
   })
 
+  const isLoading = menusLoading || permsLoading
+
   useEffect(() => {
-    if (permsData?.data) {
-      const initial = {}
-      permsData.data.forEach((row) => {
-        initial[row.menu_id || row.menu?.id || row.menu_uuid] = {
-          menu_id: row.menu_id || row.menu?.id,
-          menu_uuid: row.menu?.uuid || row.menu_uuid,
-          menu_name: row.menu?.name || row.menu_name,
-          can_view: !!row.can_view,
-          can_create: !!row.can_create,
-          can_edit: !!row.can_edit,
-          can_delete: !!row.can_delete,
+    if (!menusData?.data) return
+
+    const savedByMenu = {}
+    ;(permsData?.data || []).forEach((row) => {
+      savedByMenu[row.menu_uuid] = row
+    })
+
+    const initial = {}
+    menusData.data.forEach((section) => {
+      ;(section.menus || []).forEach((menu) => {
+        const saved = savedByMenu[menu.uuid]
+        initial[menu.uuid] = {
+          menu_uuid: menu.uuid,
+          menu_name: menu.name,
+          can_view: !!saved?.can_view,
+          can_create: !!saved?.can_create,
+          can_edit: !!saved?.can_edit,
+          can_delete: !!saved?.can_delete,
         }
       })
-      setMatrix(initial)
-    }
-  }, [permsData])
+    })
+    setMatrix(initial)
+  }, [menusData, permsData])
 
   const saveMutation = useMutation({
     mutationFn: (payload) => updateRolePermissions(uuid, { permissions: payload }),
@@ -49,28 +72,28 @@ function RolePermissions() {
     onError: (err) => toast.error(err.response?.data?.message || 'Save failed'),
   })
 
-  const toggle = (menuId, field) => {
+  const toggle = (menuUuid, field) => {
     setMatrix((prev) => ({
       ...prev,
-      [menuId]: { ...prev[menuId], [field]: !prev[menuId][field] },
+      [menuUuid]: { ...prev[menuUuid], [field]: !prev[menuUuid][field] },
     }))
   }
 
-  const toggleRow = (menuId) => {
+  const toggleRow = (menuUuid) => {
     setMatrix((prev) => {
-      const row = prev[menuId]
+      const row = prev[menuUuid]
       const allOn = fields.every((f) => row[f.key])
       const next = {}
       fields.forEach((f) => {
         next[f.key] = !allOn
       })
-      return { ...prev, [menuId]: { ...row, ...next } }
+      return { ...prev, [menuUuid]: { ...row, ...next } }
     })
   }
 
   const handleSave = () => {
     const payload = Object.values(matrix).map((row) => ({
-      menu_id: row.menu_id,
+      menu_uuid: row.menu_uuid,
       can_view: row.can_view,
       can_create: row.can_create,
       can_edit: row.can_edit,
@@ -85,11 +108,11 @@ function RolePermissions() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <button onClick={() => navigate('/roles')} className="rounded p-2 hover:bg-slate-100 dark:hover:bg-slate-700">
+          <button onClick={() => navigate('/roles')} className="rounded p-2 hover:bg-surface-hover">
             <ArrowLeft size={18} />
           </button>
-          <h1 className="text-xl font-bold text-text-primary dark:text-slate-100">
-            Permissions - {role?.data?.name}
+          <h1 className="text-xl font-bold text-text-primary">
+            Permissions - {roleName}
           </h1>
         </div>
         <Button onClick={handleSave} disabled={saveMutation.isPending}>
@@ -97,7 +120,7 @@ function RolePermissions() {
         </Button>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-surface-border bg-surface-card dark:bg-slate-800 dark:border-slate-700">
+      <div className="overflow-x-auto rounded-lg border border-surface-border bg-surface-card">
         {isLoading ? (
           <div className="p-4 space-y-2">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -107,7 +130,7 @@ function RolePermissions() {
         ) : (
           <table className="w-full text-left text-sm">
             <thead>
-              <tr className="border-b border-surface-border text-text-secondary dark:border-slate-700">
+              <tr className="border-b border-surface-border text-text-secondary">
                 <th className="px-4 py-3 font-medium">Menu</th>
                 {fields.map((f) => (
                   <th key={f.key} className="px-4 py-3 text-center font-medium">
@@ -118,15 +141,15 @@ function RolePermissions() {
               </tr>
             </thead>
             <tbody>
-              {rows.map(([menuId, row]) => (
-                <tr key={menuId} className="border-b border-surface-border last:border-0 dark:border-slate-700">
-                  <td className="px-4 py-3 font-medium text-text-primary dark:text-slate-100">{row.menu_name}</td>
+              {rows.map(([menuUuid, row]) => (
+                <tr key={menuUuid} className="border-b border-surface-border last:border-0">
+                  <td className="px-4 py-3 font-medium text-text-primary">{row.menu_name}</td>
                   {fields.map((f) => (
                     <td key={f.key} className="px-4 py-3 text-center">
                       <input
                         type="checkbox"
                         checked={!!row[f.key]}
-                        onChange={() => toggle(menuId, f.key)}
+                        onChange={() => toggle(menuUuid, f.key)}
                         className="h-4 w-4 accent-primary"
                       />
                     </td>
@@ -135,7 +158,7 @@ function RolePermissions() {
                     <input
                       type="checkbox"
                       checked={fields.every((f) => row[f.key])}
-                      onChange={() => toggleRow(menuId)}
+                      onChange={() => toggleRow(menuUuid)}
                       className="h-4 w-4 accent-primary"
                     />
                   </td>

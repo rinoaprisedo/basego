@@ -8,54 +8,71 @@ import (
 	"gorm.io/gorm"
 )
 
+// Handler is the HTTP layer for querying/cleaning up activity logs.
 type Handler struct {
-	DB  *gorm.DB
-	Cfg *config.Config
+	Cfg     *config.Config
+	Service *Service
 }
 
 func NewHandler(db *gorm.DB, cfg *config.Config) *Handler {
-	return &Handler{DB: db, Cfg: cfg}
+	return &Handler{Cfg: cfg, Service: NewService(NewRepository(db))}
 }
 
+// List godoc
+// @Summary		List activity logs
+// @Tags			activity-logs
+// @Security		SessionCookie
+// @Param			page		query		int		false	"Page number"
+// @Param			limit		query		int		false	"Page size"
+// @Param			user		query		string	false	"Filter by user UUID"
+// @Param			module		query		string	false	"Filter by module"
+// @Param			action		query		string	false	"Filter by action"
+// @Param			date_from	query		string	false	"Filter from date (RFC3339)"
+// @Param			date_to		query		string	false	"Filter to date (RFC3339)"
+// @Success		200			{object}	utils.Response
+// @Router			/activity-logs [get]
 func (h *Handler) List(c *gin.Context) {
 	p := utils.GetPagination(c, "created_at")
-	q := h.DB.Model(&ActivityLog{})
-
-	if userUUID := c.Query("user"); userUUID != "" {
-		q = q.Joins("JOIN users ON users.id = activity_logs.user_id").Where("users.uuid = ?", userUUID)
+	f := ListFilter{
+		UserUUID: c.Query("user"),
+		Module:   c.Query("module"),
+		Action:   c.Query("action"),
+		DateFrom: c.Query("date_from"),
+		DateTo:   c.Query("date_to"),
 	}
-	if module := c.Query("module"); module != "" {
-		q = q.Where("module = ?", module)
+	list, total, err := h.Service.List(p, f)
+	if err != nil {
+		utils.Error(c, 500, "failed to fetch activity logs")
+		return
 	}
-	if action := c.Query("action"); action != "" {
-		q = q.Where("action = ?", action)
-	}
-	if from := c.Query("date_from"); from != "" {
-		q = q.Where("created_at >= ?", from)
-	}
-	if to := c.Query("date_to"); to != "" {
-		q = q.Where("created_at <= ?", to)
-	}
-
-	var total int64
-	q.Count(&total)
-
-	var list []ActivityLog
-	q.Order(p.SortBy + " " + p.SortDir).Offset(p.Offset).Limit(p.Limit).Find(&list)
 	utils.SuccessList(c, "ok", list, utils.BuildMeta(p.Page, p.Limit, total))
 }
 
+// Get godoc
+// @Summary		Get an activity log entry
+// @Tags			activity-logs
+// @Security		SessionCookie
+// @Param			uuid	path		string	true	"Activity log UUID"
+// @Success		200		{object}	utils.Response
+// @Failure		404		{object}	utils.Response
+// @Router			/activity-logs/{uuid} [get]
 func (h *Handler) Get(c *gin.Context) {
-	var entry ActivityLog
-	if err := h.DB.Where("uuid = ?", c.Param("uuid")).First(&entry).Error; err != nil {
+	entry, err := h.Service.Get(c.Param("uuid"))
+	if err != nil {
 		utils.Error(c, 404, "activity log not found")
 		return
 	}
 	utils.Success(c, 200, "ok", entry)
 }
 
+// Cleanup godoc
+// @Summary		Delete activity logs older than the retention window
+// @Tags			activity-logs
+// @Security		SessionCookie
+// @Success		200	{object}	utils.Response
+// @Router			/activity-logs/cleanup [delete]
 func (h *Handler) Cleanup(c *gin.Context) {
-	count, err := CleanupOld(h.Cfg.LogCleanupDays)
+	count, err := h.Service.Cleanup(h.Cfg.LogCleanupDays)
 	if err != nil {
 		utils.Error(c, 500, "failed to clean up activity logs")
 		return

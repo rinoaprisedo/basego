@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"crypto/rand"
+	"crypto/subtle"
 	"encoding/hex"
 
 	"github.com/gin-gonic/gin"
@@ -27,7 +28,7 @@ func CSRF(secure bool) gin.HandlerFunc {
 		}
 
 		header := c.GetHeader(csrfHeaderName)
-		if header == "" || header != token {
+		if header == "" || subtle.ConstantTimeCompare([]byte(header), []byte(token)) != 1 {
 			c.AbortWithStatusJSON(403, gin.H{"success": false, "message": "invalid or missing CSRF token"})
 			return
 		}

@@ -50,11 +50,11 @@ func seedSuperadminUser(db *gorm.DB, role roles.Role) {
 		Email:    "admin@example.com",
 		Password: string(hashed),
 		Status:   users.StatusActive,
+		RoleID:   &role.ID,
 	}
 	if err := db.Create(&user).Error; err != nil {
 		log.Fatalf("failed to seed superadmin user: %v", err)
 	}
-	db.Create(&roles.UserRole{UserID: user.ID, RoleID: role.ID})
 }
 
 type menuDef struct {
@@ -69,25 +69,25 @@ func seedMenus(db *gorm.DB) []uint64 {
 		Menus   []menuDef
 	}{
 		{
-			Section: menu_sections.MenuSection{Name: "Dashboard", Icon: "layout-dashboard", Order: 1},
+			Section: menu_sections.MenuSection{Name: "Dashboard", Icon: "LayoutDashboard", Order: 1},
 			Menus: []menuDef{
-				{Name: "Dashboard", Icon: "layout-dashboard", Path: "/"},
+				{Name: "Dashboard", Icon: "LayoutDashboard", Path: "/"},
 			},
 		},
 		{
-			Section: menu_sections.MenuSection{Name: "User Management", Icon: "users", Order: 2},
+			Section: menu_sections.MenuSection{Name: "User Management", Icon: "Users", Order: 2},
 			Menus: []menuDef{
-				{Name: "Users", Icon: "user", Path: "users"},
-				{Name: "Roles", Icon: "shield", Path: "roles"},
+				{Name: "Users", Icon: "User", Path: "users"},
+				{Name: "Roles", Icon: "Shield", Path: "roles"},
 			},
 		},
 		{
-			Section: menu_sections.MenuSection{Name: "System", Icon: "settings", Order: 3},
+			Section: menu_sections.MenuSection{Name: "System", Icon: "Settings", Order: 3},
 			Menus: []menuDef{
-				{Name: "Menus", Icon: "menu", Path: "menus"},
-				{Name: "Menu Sections", Icon: "folder-tree", Path: "menu-sections"},
-				{Name: "Settings", Icon: "settings", Path: "settings"},
-				{Name: "Activity Logs", Icon: "history", Path: "activity-logs"},
+				{Name: "Menus", Icon: "Menu", Path: "menus"},
+				{Name: "Menu Sections", Icon: "FolderTree", Path: "menu-sections"},
+				{Name: "Settings", Icon: "Settings", Path: "settings"},
+				{Name: "Activity Logs", Icon: "History", Path: "activity-logs"},
 			},
 		},
 	}

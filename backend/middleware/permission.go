@@ -32,8 +32,8 @@ func RequirePermission(db *gorm.DB, menuPath, action string) gin.HandlerFunc {
 		var count int64
 		db.Table("permissions").
 			Joins("JOIN menus ON menus.id = permissions.menu_id").
-			Joins("JOIN user_roles ON user_roles.role_id = permissions.role_id").
-			Where("user_roles.user_id = ? AND menus.path = ? AND permissions."+column+" = ?", *userID, menuPath, true).
+			Joins("JOIN users ON users.role_id = permissions.role_id").
+			Where("users.id = ? AND menus.path = ? AND permissions."+column+" = ?", *userID, menuPath, true).
 			Count(&count)
 
 		if count == 0 {

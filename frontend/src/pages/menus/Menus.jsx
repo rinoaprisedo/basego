@@ -19,7 +19,13 @@ function Menus() {
   const [editing, setEditing] = useState(null)
   const [deleting, setDeleting] = useState(null)
 
-  const { data, isLoading } = useQuery({ queryKey: ['menus', 'all'], queryFn: () => getMenus({ limit: 200 }) })
+  // GET /menus returns sections with a nested `menus` array already grouped
+  // server-side (used by the sidebar tree too) — no separate flat menu list
+  // endpoint exists, so this page renders that tree directly. Query key must
+  // differ from Sidebar's ['menus', 'tree'] (which filters is_active=true) —
+  // otherwise React Query treats them as the same cache entry and this page
+  // silently inherits the sidebar's active-only result, hiding inactive menus.
+  const { data, isLoading } = useQuery({ queryKey: ['menus', 'tree', 'all'], queryFn: () => getMenus({ limit: 200 }) })
   const { data: sectionsData } = useQuery({ queryKey: ['menu-sections'], queryFn: () => getMenuSections({ limit: 100 }) })
 
   const saveMutation = useMutation({
@@ -44,18 +50,14 @@ function Menus() {
   })
 
   const reorderMutation = useMutation({
-    mutationFn: (payload) => reorderMenus({ menus: payload }),
+    mutationFn: (payload) => reorderMenus(payload),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['menus'] }),
     onError: (err) => toast.error(err.response?.data?.message || 'Reorder failed'),
   })
 
-  const menus = data?.data || []
+  // Each item already carries its own `menus` array, sorted by the backend.
+  const grouped = data?.data || []
   const sections = sectionsData?.data || []
-
-  const grouped = sections.map((sec) => ({
-    ...sec,
-    menus: menus.filter((m) => (m.menu_section_id || m.menu_section?.id) === sec.id).sort((a, b) => (a.order || 0) - (b.order || 0)),
-  }))
 
   const move = (sectionMenus, index, dir) => {
     const swapIndex = index + dir
@@ -71,7 +73,7 @@ function Menus() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-text-primary dark:text-slate-100">Menus</h1>
+        <h1 className="text-xl font-bold text-text-primary">Menus</h1>
         {canCreate('menus') && (
           <Button
             onClick={() => {
@@ -91,26 +93,26 @@ function Menus() {
       ) : (
         <div className="space-y-4">
           {grouped.map((sec) => (
-            <div key={sec.id} className="rounded-lg border border-surface-border bg-surface-card dark:bg-slate-800 dark:border-slate-700">
-              <div className="border-b border-surface-border px-4 py-3 font-semibold text-text-primary dark:border-slate-700 dark:text-slate-100">
+            <div key={sec.uuid} className="rounded-lg border border-surface-border bg-surface-card">
+              <div className="border-b border-surface-border px-4 py-3 font-semibold text-text-primary">
                 {sec.name}
               </div>
               {sec.menus.length === 0 ? (
                 <div className="p-4 text-sm text-text-secondary">No menus in this section</div>
               ) : (
-                <ul className="divide-y divide-surface-border dark:divide-slate-700">
+                <ul className="divide-y divide-surface-border">
                   {sec.menus.map((m, i) => (
                     <li key={m.uuid} className="flex items-center justify-between px-4 py-2.5">
                       <div className="flex items-center gap-3 text-sm">
-                        <span className="font-medium text-text-primary dark:text-slate-100">{m.name}</span>
+                        <span className="font-medium text-text-primary">{m.name}</span>
                         <span className="text-text-secondary">{m.path}</span>
                         <Badge variant={m.is_active ? 'success' : 'neutral'}>{m.is_active ? 'active' : 'inactive'}</Badge>
                       </div>
                       <div className="flex items-center gap-1">
-                        <button onClick={() => move(sec.menus, i, -1)} disabled={i === 0} className="rounded p-1.5 hover:bg-slate-100 disabled:opacity-30 dark:hover:bg-slate-700">
+                        <button onClick={() => move(sec.menus, i, -1)} disabled={i === 0} className="rounded p-1.5 hover:bg-surface-hover disabled:opacity-30">
                           <ArrowUp size={14} />
                         </button>
-                        <button onClick={() => move(sec.menus, i, 1)} disabled={i === sec.menus.length - 1} className="rounded p-1.5 hover:bg-slate-100 disabled:opacity-30 dark:hover:bg-slate-700">
+                        <button onClick={() => move(sec.menus, i, 1)} disabled={i === sec.menus.length - 1} className="rounded p-1.5 hover:bg-surface-hover disabled:opacity-30">
                           <ArrowDown size={14} />
                         </button>
                         {canEdit('menus') && (
@@ -119,7 +121,7 @@ function Menus() {
                               setEditing(m)
                               setFormOpen(true)
                             }}
-                            className="rounded p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700"
+                            className="rounded p-1.5 hover:bg-surface-hover"
                           >
                             <Pencil size={14} />
                           </button>
