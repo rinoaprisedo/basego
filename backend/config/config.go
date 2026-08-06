@@ -47,7 +47,7 @@ func Load() *Config {
 	Cfg = &Config{
 		AppEnv:      getEnv("APP_ENV", "development"),
 		AppPort:     getEnv("APP_PORT", "8500"),
-		FrontendURL: getEnv("FRONTEND_URL", "http://localhost:8501"),
+		FrontendURL: getEnv("FRONTEND_URL", "http://localhost:8501,http://localhost:8502"),
 
 		DBDriver: getEnv("DB_DRIVER", "postgres"),
 		DBHost:   getEnv("DB_HOST", "localhost"),

@@ -7,10 +7,18 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// CORSMiddleware whitelists only the configured frontend origin.
-func CORSMiddleware(frontendURL string) gin.HandlerFunc {
+// CORSMiddleware whitelists the configured frontend origin(s). frontendURLs
+// is comma-separated (e.g. the React admin on :8501 and the Flutter web dev
+// server on :8502 running side by side).
+func CORSMiddleware(frontendURLs string) gin.HandlerFunc {
+	var origins []string
+	for _, o := range strings.Split(frontendURLs, ",") {
+		if o = strings.TrimSpace(o); o != "" {
+			origins = append(origins, o)
+		}
+	}
 	cfg := cors.Config{
-		AllowOrigins:     []string{frontendURL},
+		AllowOrigins:     origins,
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "X-CSRF-Token", "Authorization"},
 		AllowCredentials: true,

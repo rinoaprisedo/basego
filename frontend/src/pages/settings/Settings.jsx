@@ -4,6 +4,7 @@ import toast from 'react-hot-toast'
 import Input from '../../components/ui/Input'
 import Button from '../../components/ui/Button'
 import Skeleton from '../../components/ui/Skeleton'
+import FileUpload from '../../components/ui/FileUpload'
 import { Menubar, MenubarLabel } from '../../components/ui/Menubar'
 import { getSettings, updateSettings, uploadSetting } from '../../api/settings'
 import { fileURL } from '../../utils/url'
@@ -61,9 +62,7 @@ function Settings() {
     onError: (err) => toast.error(err.response?.data?.message || 'Upload failed'),
   })
 
-  const handleFileChange = (key) => (e) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+  const handleFileChange = (key) => (file) => {
     const formData = new FormData()
     formData.append('file', file)
     formData.append('target', key)
@@ -114,16 +113,22 @@ function Settings() {
 
         {tab === 'Appearance' && (
           <div className="max-w-md space-y-6">
-            <div>
-              <p className="mb-2 text-sm font-medium text-text-primary">Logo</p>
-              {logoPreview && <img src={logoPreview} alt="logo" className="mb-2 h-16 w-16 object-contain" />}
-              <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleFileChange('app_logo')} />
-            </div>
-            <div>
-              <p className="mb-2 text-sm font-medium text-text-primary">Favicon</p>
-              {faviconPreview && <img src={faviconPreview} alt="favicon" className="mb-2 h-8 w-8 object-contain" />}
-              <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleFileChange('app_favicon')} />
-            </div>
+            <FileUpload
+              label="Logo"
+              hint="PNG, JPEG or WebP"
+              accept="image/png,image/jpeg,image/webp"
+              preview={logoPreview}
+              onFileSelect={handleFileChange('app_logo')}
+              previewClassName="h-16 w-16"
+            />
+            <FileUpload
+              label="Favicon"
+              hint="PNG, JPEG or WebP"
+              accept="image/png,image/jpeg,image/webp"
+              preview={faviconPreview}
+              onFileSelect={handleFileChange('app_favicon')}
+              previewClassName="h-12 w-12"
+            />
             <div>
               <p className="mb-2 text-sm font-medium text-text-primary">Base Color</p>
               <div className="flex items-center gap-3">

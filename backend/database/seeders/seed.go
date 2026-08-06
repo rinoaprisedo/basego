@@ -19,6 +19,7 @@ import (
 func Run(db *gorm.DB) {
 	superadminRole := seedSuperadminRole(db)
 	seedSuperadminUser(db, superadminRole)
+	seedUser(db, superadminRole, "Rino Aprisedo", "rinoaprisedo@gmail.com", "password!!")
 	menuIDs := seedMenus(db)
 	seedPermissions(db, superadminRole.ID, menuIDs)
 	seedSettings(db)
@@ -54,6 +55,28 @@ func seedSuperadminUser(db *gorm.DB, role roles.Role) {
 	}
 	if err := db.Create(&user).Error; err != nil {
 		log.Fatalf("failed to seed superadmin user: %v", err)
+	}
+}
+
+func seedUser(db *gorm.DB, role roles.Role, name, email, password string) {
+	var user users.User
+	result := db.Where("email = ?", email).First(&user)
+	if result.Error == nil {
+		return
+	}
+	hashed, err := bcrypt.GenerateFromPassword([]byte(password), 12)
+	if err != nil {
+		log.Fatalf("failed to hash user password: %v", err)
+	}
+	user = users.User{
+		Name:     name,
+		Email:    email,
+		Password: string(hashed),
+		Status:   users.StatusActive,
+		RoleID:   &role.ID,
+	}
+	if err := db.Create(&user).Error; err != nil {
+		log.Fatalf("failed to seed user: %v", err)
 	}
 }
 
