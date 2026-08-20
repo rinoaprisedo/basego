@@ -46,8 +46,11 @@ export const menuSectionSchema = z.object({
 export const menuSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   icon: z.string().optional().or(z.literal('')),
-  path: z.string().min(1, 'Path is required'),
+  // Group/parent nodes (e.g. "Job Posting") may have no route of their own —
+  // only leaf items need a real path — so this stays optional, unlike before.
+  path: z.string().optional().or(z.literal('')),
   menu_section_uuid: z.string().min(1, 'Section is required'),
+  parent_uuid: z.string().optional().or(z.literal('')),
   order: z.union([z.string(), z.number()]).optional(),
   is_active: z.boolean().optional(),
 })
