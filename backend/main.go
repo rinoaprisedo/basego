@@ -2,7 +2,7 @@
 // middleware stack, module routes, and the migrate/seed CLI subcommands.
 //
 // @title						BaseAdmin API
-// @version					1.0
+// @version					1.2.0
 // @description				Admin Panel Base Project API
 // @host						localhost:8500
 // @BasePath					/api/v1
@@ -37,6 +37,10 @@ import (
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 )
+
+// AppVersion is surfaced unauthenticated at GET /api/v1/version for the
+// frontend footer — bump alongside the @version annotation above.
+const AppVersion = "1.2.0"
 
 func main() {
 	cfg := config.Load()
@@ -102,6 +106,10 @@ func main() {
 	})
 
 	api := router.Group("/api/v1")
+
+	api.GET("/version", func(c *gin.Context) {
+		utils.Success(c, 200, "ok", gin.H{"version": AppVersion})
+	})
 
 	authHandler := auth.NewHandler(db, rdb, cfg)
 	authHandler.RegisterRoutes(api, sessionAuth)

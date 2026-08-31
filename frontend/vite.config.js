@@ -1,9 +1,15 @@
+import { readFileSync } from 'fs'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
+const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url)))
+
 export default defineConfig({
   plugins: [react()],
-  server: { port: 8501 },
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
+  },
+  server: { port: 8881 },
   test: {
     environment: 'jsdom',
     globals: true,

@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { Plus, Pencil, Trash2, ArrowUp, ArrowDown } from 'lucide-react'
+import { Plus, Pencil, Trash2, GripVertical } from 'lucide-react'
 import Badge from '../../components/ui/Badge'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import EmptyState from '../../components/ui/EmptyState'
@@ -19,6 +19,9 @@ function Menus() {
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState(null)
   const [deleting, setDeleting] = useState(null)
+  const [dragSection, setDragSection] = useState(null)
+  const [dragIndex, setDragIndex] = useState(null)
+  const [overIndex, setOverIndex] = useState(null)
 
   // GET /menus returns sections with a nested `menus` array already grouped
   // server-side (used by the sidebar tree too) — no separate flat menu list
@@ -60,15 +63,19 @@ function Menus() {
   const grouped = data?.data || []
   const sections = sectionsData?.data || []
 
-  const move = (sectionMenus, index, dir) => {
-    const swapIndex = index + dir
-    if (swapIndex < 0 || swapIndex >= sectionMenus.length) return
-    const a = sectionMenus[index]
-    const b = sectionMenus[swapIndex]
-    reorderMutation.mutate([
-      { uuid: a.uuid, order: b.order },
-      { uuid: b.uuid, order: a.order },
-    ])
+  const dropReorder = (sectionMenus, fromIndex, toIndex) => {
+    if (fromIndex === toIndex) return
+    const orders = sectionMenus.map((m) => m.order)
+    const items = [...sectionMenus]
+    const [moved] = items.splice(fromIndex, 1)
+    items.splice(toIndex, 0, moved)
+    reorderMutation.mutate(items.map((m, i) => ({ uuid: m.uuid, order: orders[i] })))
+  }
+
+  const resetDrag = () => {
+    setDragSection(null)
+    setDragIndex(null)
+    setOverIndex(null)
   }
 
   usePageActions(
@@ -112,39 +119,62 @@ function Menus() {
                 <div className="p-4 text-sm text-text-secondary">No menus in this section</div>
               ) : (
                 <ul className="divide-y divide-surface-border">
-                  {sec.menus.map((m, i) => (
-                    <li key={m.uuid} className="flex items-center justify-between px-4 py-2.5">
-                      <div className="flex items-center gap-3 text-sm">
-                        <span className="font-medium text-text-primary">{m.name}</span>
-                        <span className="text-text-secondary">{m.path}</span>
-                        <Badge variant={m.is_active ? 'success' : 'neutral'}>{m.is_active ? 'active' : 'inactive'}</Badge>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <button onClick={() => move(sec.menus, i, -1)} disabled={i === 0} className="rounded p-1.5 hover:bg-surface-hover disabled:opacity-30">
-                          <ArrowUp size={14} />
-                        </button>
-                        <button onClick={() => move(sec.menus, i, 1)} disabled={i === sec.menus.length - 1} className="rounded p-1.5 hover:bg-surface-hover disabled:opacity-30">
-                          <ArrowDown size={14} />
-                        </button>
-                        {canEdit('menus') && (
-                          <button
-                            onClick={() => {
-                              setEditing(m)
-                              setFormOpen(true)
-                            }}
-                            className="rounded p-1.5 hover:bg-surface-hover"
-                          >
-                            <Pencil size={14} />
-                          </button>
-                        )}
-                        {canDelete('menus') && (
-                          <button onClick={() => setDeleting(m)} className="rounded p-1.5 text-danger hover:bg-danger/10">
-                            <Trash2 size={14} />
-                          </button>
-                        )}
-                      </div>
-                    </li>
-                  ))}
+                  {sec.menus.map((m, i) => {
+                    const draggable = canEdit('menus')
+                    const isDragging = dragSection === sec.uuid && dragIndex === i
+                    const isOver = dragSection === sec.uuid && overIndex === i && dragIndex !== i
+                    return (
+                      <li
+                        key={m.uuid}
+                        draggable={draggable}
+                        onDragStart={() => {
+                          setDragSection(sec.uuid)
+                          setDragIndex(i)
+                        }}
+                        onDragOver={(e) => {
+                          if (dragSection !== sec.uuid) return
+                          e.preventDefault()
+                          setOverIndex(i)
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault()
+                          if (dragSection === sec.uuid && dragIndex !== null) {
+                            dropReorder(sec.menus, dragIndex, i)
+                          }
+                          resetDrag()
+                        }}
+                        onDragEnd={resetDrag}
+                        className={`flex items-center justify-between px-4 py-2.5 ${isDragging ? 'opacity-40' : ''} ${isOver ? 'border-t-2 border-primary' : ''}`}
+                      >
+                        <div className="flex items-center gap-3 text-sm">
+                          {draggable && (
+                            <GripVertical size={14} className="shrink-0 cursor-grab text-text-secondary active:cursor-grabbing" />
+                          )}
+                          <span className="font-medium text-text-primary">{m.name}</span>
+                          <span className="text-text-secondary">{m.path}</span>
+                          <Badge variant={m.is_active ? 'success' : 'neutral'}>{m.is_active ? 'active' : 'inactive'}</Badge>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {canEdit('menus') && (
+                            <button
+                              onClick={() => {
+                                setEditing(m)
+                                setFormOpen(true)
+                              }}
+                              className="rounded p-1.5 hover:bg-surface-hover"
+                            >
+                              <Pencil size={14} />
+                            </button>
+                          )}
+                          {canDelete('menus') && (
+                            <button onClick={() => setDeleting(m)} className="rounded p-1.5 text-danger hover:bg-danger/10">
+                              <Trash2 size={14} />
+                            </button>
+                          )}
+                        </div>
+                      </li>
+                    )
+                  })}
                 </ul>
               )}
             </div>

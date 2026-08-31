@@ -3,13 +3,16 @@ import { getPublicSettings } from '../api/settings'
 import { fileURL } from '../utils/url'
 import { applyPrimaryColor } from '../utils/color'
 
-const DEFAULT_PRIMARY = '#c2622e'
+const DEFAULT_PRIMARY = '#35494d'
 
 const useSettingsStore = create((set) => ({
   appName: 'BaseAdmin',
   logo: null,
   favicon: null,
   primaryColor: DEFAULT_PRIMARY,
+  // Assumed reachable until the first check completes, so we don't flash the
+  // offline screen before fetchSettings has had a chance to run.
+  backendOnline: true,
   // Branding only — uses the unauthenticated /settings/public endpoint so it
   // resolves correctly on the login page too, not just after signing in.
   fetchSettings: async () => {
@@ -24,9 +27,14 @@ const useSettingsStore = create((set) => ({
         logo: fileURL(map.app_logo),
         favicon: fileURL(map.app_favicon),
         primaryColor,
+        backendOnline: true,
       })
-    } catch {
-      // settings API not reachable — keep defaults
+    } catch (err) {
+      // No response at all (connection refused/timeout) means the backend is
+      // down — an HTTP error response still means the server is reachable.
+      if (!err.response) {
+        set({ backendOnline: false })
+      }
     }
   },
   setPrimaryColor: (hex) => {

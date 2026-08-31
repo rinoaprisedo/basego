@@ -20,24 +20,29 @@ func NewRepository(db *gorm.DB) *Repository {
 }
 
 type ListFilter struct {
-	UserUUID string
-	Module   string
-	Action   string
-	DateFrom string
-	DateTo   string
+	User      string
+	Module    string
+	Action    string
+	IPAddress string
+	DateFrom  string
+	DateTo    string
 }
 
 func (r *Repository) List(p utils.Pagination, f ListFilter) ([]ActivityLog, int64, error) {
 	q := r.DB.Model(&ActivityLog{})
 
-	if f.UserUUID != "" {
-		q = q.Joins("JOIN users ON users.id = activity_logs.user_id").Where("users.uuid = ?", f.UserUUID)
+	if f.User != "" {
+		like := "%" + f.User + "%"
+		q = q.Joins("JOIN users ON users.id = activity_logs.user_id").Where("users.name LIKE ? OR users.email LIKE ?", like, like)
 	}
 	if f.Module != "" {
 		q = q.Where("module = ?", f.Module)
 	}
 	if f.Action != "" {
 		q = q.Where("action = ?", f.Action)
+	}
+	if f.IPAddress != "" {
+		q = q.Where("ip_address LIKE ?", "%"+f.IPAddress+"%")
 	}
 	if f.DateFrom != "" {
 		q = q.Where("created_at >= ?", f.DateFrom)

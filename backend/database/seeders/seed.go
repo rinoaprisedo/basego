@@ -155,12 +155,14 @@ func seedSettings(db *gorm.DB) {
 		"app_name":         settings.TypeString,
 		"app_logo":         settings.TypeFile,
 		"app_favicon":      settings.TypeFile,
+		"primary_color":    settings.TypeString,
 		"maintenance_mode": settings.TypeBoolean,
 	}
 	values := map[string]string{
 		"app_name":         "BaseAdmin",
 		"app_logo":         "",
 		"app_favicon":      "",
+		"primary_color":    "#35494d",
 		"maintenance_mode": "false",
 	}
 	for key, t := range defaults {

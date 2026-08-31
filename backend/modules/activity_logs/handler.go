@@ -24,9 +24,10 @@ func NewHandler(db *gorm.DB, cfg *config.Config) *Handler {
 // @Security		SessionCookie
 // @Param			page		query		int		false	"Page number"
 // @Param			limit		query		int		false	"Page size"
-// @Param			user		query		string	false	"Filter by user UUID"
+// @Param			user		query		string	false	"Filter by user name/email (partial match)"
 // @Param			module		query		string	false	"Filter by module"
 // @Param			action		query		string	false	"Filter by action"
+// @Param			ip			query		string	false	"Filter by IP address (partial match)"
 // @Param			date_from	query		string	false	"Filter from date (RFC3339)"
 // @Param			date_to		query		string	false	"Filter to date (RFC3339)"
 // @Success		200			{object}	utils.Response
@@ -34,11 +35,12 @@ func NewHandler(db *gorm.DB, cfg *config.Config) *Handler {
 func (h *Handler) List(c *gin.Context) {
 	p := utils.GetPagination(c, "created_at")
 	f := ListFilter{
-		UserUUID: c.Query("user"),
-		Module:   c.Query("module"),
-		Action:   c.Query("action"),
-		DateFrom: c.Query("date_from"),
-		DateTo:   c.Query("date_to"),
+		User:      c.Query("user"),
+		Module:    c.Query("module"),
+		Action:    c.Query("action"),
+		IPAddress: c.Query("ip"),
+		DateFrom:  c.Query("date_from"),
+		DateTo:    c.Query("date_to"),
 	}
 	list, total, err := h.Service.List(p, f)
 	if err != nil {

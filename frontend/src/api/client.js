@@ -1,4 +1,5 @@
 import axios from 'axios'
+import useApiTimingStore from '../store/apiTimingStore'
 
 const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8500/api/v1'
 
@@ -18,12 +19,22 @@ client.interceptors.request.use((config) => {
   if (token) {
     config.headers['X-CSRF-Token'] = token
   }
+  config.metadata = { startTime: performance.now() }
   return config
 })
 
+function recordDuration(config) {
+  if (!config?.metadata) return
+  useApiTimingStore.getState().setLastDuration(Math.round(performance.now() - config.metadata.startTime))
+}
+
 client.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    recordDuration(response.config)
+    return response
+  },
   (error) => {
+    recordDuration(error.config)
     const status = error.response?.status
     if (status === 401 && window.location.pathname !== '/login') {
       window.location.href = '/login'

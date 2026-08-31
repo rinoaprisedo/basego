@@ -15,5 +15,5 @@ class AppColors {
 
   // Matches the React admin frontend's default primary, for visual parity
   // when the backend hasn't set primary_color yet.
-  static const defaultPrimary = Color(0xFFC2622E);
+  static const defaultPrimary = Color(0xFF35494D);
 }

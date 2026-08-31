@@ -1,9 +1,10 @@
 import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { Plus, Pencil, Trash2, ArrowUp, ArrowDown } from 'lucide-react'
-import Table from '../../components/ui/Table'
+import { Plus, Pencil, Trash2, GripVertical } from 'lucide-react'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import EmptyState from '../../components/ui/EmptyState'
+import Skeleton from '../../components/ui/Skeleton'
 import { Menubar, MenubarAction, MenubarLabel, MenubarSeparator } from '../../components/ui/Menubar'
 import MenuSectionFormModal from './MenuSectionFormModal'
 import {
@@ -22,6 +23,8 @@ function MenuSections() {
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState(null)
   const [deleting, setDeleting] = useState(null)
+  const [dragIndex, setDragIndex] = useState(null)
+  const [overIndex, setOverIndex] = useState(null)
 
   const { data, isLoading } = useQuery({ queryKey: ['menu-sections'], queryFn: () => getMenuSections({ limit: 100 }) })
 
@@ -54,53 +57,19 @@ function MenuSections() {
 
   const sections = data?.data || []
 
-  const move = (index, dir) => {
-    const swapIndex = index + dir
-    if (swapIndex < 0 || swapIndex >= sections.length) return
-    const a = sections[index]
-    const b = sections[swapIndex]
-    reorderMutation.mutate([
-      { uuid: a.uuid, order: b.order },
-      { uuid: b.uuid, order: a.order },
-    ])
+  const dropReorder = (fromIndex, toIndex) => {
+    if (fromIndex === toIndex) return
+    const orders = sections.map((s) => s.order)
+    const items = [...sections]
+    const [moved] = items.splice(fromIndex, 1)
+    items.splice(toIndex, 0, moved)
+    reorderMutation.mutate(items.map((s, i) => ({ uuid: s.uuid, order: orders[i] })))
   }
 
-  const columns = [
-    { key: 'name', label: 'Name' },
-    { key: 'icon', label: 'Icon' },
-    { key: 'order', label: 'Order' },
-    { key: 'menu_count', label: 'Menus', render: (row) => row.menu_count ?? (row.menus?.length || 0) },
-    {
-      key: 'actions',
-      label: '',
-      render: (row, i) => (
-        <div className="flex justify-end gap-1">
-          <button onClick={() => move(i, -1)} disabled={i === 0} className="rounded p-1.5 hover:bg-surface-hover disabled:opacity-30">
-            <ArrowUp size={14} />
-          </button>
-          <button onClick={() => move(i, 1)} disabled={i === sections.length - 1} className="rounded p-1.5 hover:bg-surface-hover disabled:opacity-30">
-            <ArrowDown size={14} />
-          </button>
-          {canEdit('menu-sections') && (
-            <button
-              onClick={() => {
-                setEditing(row)
-                setFormOpen(true)
-              }}
-              className="rounded p-1.5 hover:bg-surface-hover"
-            >
-              <Pencil size={16} />
-            </button>
-          )}
-          {canDelete('menu-sections') && (
-            <button onClick={() => setDeleting(row)} className="rounded p-1.5 text-danger hover:bg-danger/10">
-              <Trash2 size={16} />
-            </button>
-          )}
-        </div>
-      ),
-    },
-  ]
+  const resetDrag = () => {
+    setDragIndex(null)
+    setOverIndex(null)
+  }
 
   usePageActions(
     useMemo(
@@ -128,7 +97,66 @@ function MenuSections() {
 
   return (
     <div className="space-y-4">
-      <Table columns={columns} data={data?.data || []} loading={isLoading} />
+      {isLoading ? (
+        <Skeleton className="h-64 w-full" />
+      ) : sections.length === 0 ? (
+        <EmptyState title="No menu sections found" />
+      ) : (
+        <div className="rounded-lg border border-surface-border bg-surface-card">
+          <ul className="divide-y divide-surface-border">
+            {sections.map((row, i) => {
+              const draggable = canEdit('menu-sections')
+              const isDragging = dragIndex === i
+              const isOver = overIndex === i && dragIndex !== i
+              return (
+                <li
+                  key={row.uuid}
+                  draggable={draggable}
+                  onDragStart={() => setDragIndex(i)}
+                  onDragOver={(e) => {
+                    e.preventDefault()
+                    setOverIndex(i)
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault()
+                    if (dragIndex !== null) dropReorder(dragIndex, i)
+                    resetDrag()
+                  }}
+                  onDragEnd={resetDrag}
+                  className={`flex items-center justify-between px-4 py-2.5 ${isDragging ? 'opacity-40' : ''} ${isOver ? 'border-t-2 border-primary' : ''}`}
+                >
+                  <div className="flex items-center gap-3 text-sm">
+                    {draggable && (
+                      <GripVertical size={14} className="shrink-0 cursor-grab text-text-secondary active:cursor-grabbing" />
+                    )}
+                    <span className="font-medium text-text-primary">{row.name}</span>
+                    {row.icon && <span className="text-text-secondary">{row.icon}</span>}
+                    <span className="text-text-tertiary">{row.menu_count ?? (row.menus?.length || 0)} menus</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {canEdit('menu-sections') && (
+                      <button
+                        onClick={() => {
+                          setEditing(row)
+                          setFormOpen(true)
+                        }}
+                        className="rounded p-1.5 hover:bg-surface-hover"
+                      >
+                        <Pencil size={14} />
+                      </button>
+                    )}
+                    {canDelete('menu-sections') && (
+                      <button onClick={() => setDeleting(row)} className="rounded p-1.5 text-danger hover:bg-danger/10">
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      )}
 
       <MenuSectionFormModal
         open={formOpen}

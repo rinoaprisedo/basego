@@ -19,7 +19,7 @@ function Settings() {
   const [maintenance, setMaintenance] = useState(false)
   const [logoPreview, setLogoPreview] = useState(null)
   const [faviconPreview, setFaviconPreview] = useState(null)
-  const [primaryColor, setPrimaryColorInput] = useState('#c2622e')
+  const [primaryColor, setPrimaryColorInput] = useState('#35494d')
   const queryClient = useQueryClient()
   const applyPrimaryColorLive = useSettingsStore((s) => s.setPrimaryColor)
   const storedPrimaryColor = useSettingsStore((s) => s.primaryColor)

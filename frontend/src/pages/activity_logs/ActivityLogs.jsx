@@ -16,20 +16,24 @@ const actionVariant = { create: 'success', update: 'primary', delete: 'danger', 
 
 function ActivityLogs() {
   const [page, setPage] = useState(1)
-  const [limit, setLimit] = useState(10)
+  const [limit, setLimit] = useState(20)
   const [search, setSearch] = useState('')
   const [module, setModule] = useState('')
   const [action, setAction] = useState('')
+  const [user, setUser] = useState('')
+  const [ip, setIp] = useState('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [draftModule, setDraftModule] = useState('')
   const [draftAction, setDraftAction] = useState('')
+  const [draftUser, setDraftUser] = useState('')
+  const [draftIp, setDraftIp] = useState('')
   const [draftDateFrom, setDraftDateFrom] = useState('')
   const [draftDateTo, setDraftDateTo] = useState('')
   const [selected, setSelected] = useState(null)
 
   const { data, isLoading } = useQuery({
-    queryKey: ['activity-logs', { page, limit, search, module, action, dateFrom, dateTo }],
+    queryKey: ['activity-logs', { page, limit, search, module, action, user, ip, dateFrom, dateTo }],
     queryFn: () =>
       getActivityLogs({
         page,
@@ -37,6 +41,8 @@ function ActivityLogs() {
         search,
         module: module || undefined,
         action: action || undefined,
+        user: user || undefined,
+        ip: ip || undefined,
         date_from: dateFrom || undefined,
         date_to: dateTo || undefined,
       }),
@@ -70,10 +76,10 @@ function ActivityLogs() {
             label="Filter"
             icon={Filter}
             align="sheet"
-            active={!!(action || module || dateFrom || dateTo)}
+            active={!!(action || module || user || ip || dateFrom || dateTo)}
           >
             {(close) => (
-              <div className="w-full p-2 sm:w-72">
+              <div className="w-full p-3 sm:w-[420px]">
                 <div className="grid grid-cols-2 gap-3">
                   <Select label="Action" value={draftAction} onChange={(e) => setDraftAction(e.target.value)}>
                     <option value="">All</option>
@@ -88,6 +94,18 @@ function ActivityLogs() {
                     value={draftModule}
                     onChange={(e) => setDraftModule(e.target.value)}
                     placeholder="e.g. users"
+                  />
+                  <Input
+                    label="User"
+                    value={draftUser}
+                    onChange={(e) => setDraftUser(e.target.value)}
+                    placeholder="Name or email"
+                  />
+                  <Input
+                    label="IP Address"
+                    value={draftIp}
+                    onChange={(e) => setDraftIp(e.target.value)}
+                    placeholder="e.g. 127.0.0.1"
                   />
                   <Input
                     label="Date From"
@@ -109,10 +127,14 @@ function ActivityLogs() {
                     onClick={() => {
                       setDraftAction('')
                       setDraftModule('')
+                      setDraftUser('')
+                      setDraftIp('')
                       setDraftDateFrom('')
                       setDraftDateTo('')
                       setAction('')
                       setModule('')
+                      setUser('')
+                      setIp('')
                       setDateFrom('')
                       setDateTo('')
                       setPage(1)
@@ -126,6 +148,8 @@ function ActivityLogs() {
                     onClick={() => {
                       setAction(draftAction)
                       setModule(draftModule)
+                      setUser(draftUser)
+                      setIp(draftIp)
                       setDateFrom(draftDateFrom)
                       setDateTo(draftDateTo)
                       setPage(1)
@@ -140,7 +164,7 @@ function ActivityLogs() {
           </MenubarMenu>
         </Menubar>
       ),
-      [action, module, dateFrom, dateTo, draftAction, draftModule, draftDateFrom, draftDateTo],
+      [action, module, user, ip, dateFrom, dateTo, draftAction, draftModule, draftUser, draftIp, draftDateFrom, draftDateTo],
     ),
   )
 
