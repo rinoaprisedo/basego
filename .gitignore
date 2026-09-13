@@ -1,5 +1,5 @@
 backend/.env
-frontend/.env
+webadmin/.env
 backend/storage/uploads/*
 !backend/storage/uploads/.gitkeep
 node_modules/
