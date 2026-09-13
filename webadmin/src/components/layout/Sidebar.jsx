@@ -12,7 +12,7 @@ function iconFor(name) {
   return Icons[name] || LayoutGrid
 }
 
-const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:8500/api/v1'
+const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:8800/api/v1'
 const swaggerURL = apiBase.replace(/\/api\/v1\/?$/, '') + '/swagger/index.html'
 
 function Sidebar() {

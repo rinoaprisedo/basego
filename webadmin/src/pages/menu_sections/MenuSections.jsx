@@ -123,17 +123,17 @@ function MenuSections() {
                     resetDrag()
                   }}
                   onDragEnd={resetDrag}
-                  className={`flex items-center justify-between px-4 py-2.5 ${isDragging ? 'opacity-40' : ''} ${isOver ? 'border-t-2 border-primary' : ''}`}
+                  className={`flex items-center justify-between gap-3 px-4 py-2.5 ${isDragging ? 'opacity-40' : ''} ${isOver ? 'border-t-2 border-primary' : ''}`}
                 >
-                  <div className="flex items-center gap-3 text-sm">
+                  <div className="flex min-w-0 items-center gap-3 text-sm">
                     {draggable && (
                       <GripVertical size={14} className="shrink-0 cursor-grab text-text-secondary active:cursor-grabbing" />
                     )}
-                    <span className="font-medium text-text-primary">{row.name}</span>
-                    {row.icon && <span className="text-text-secondary">{row.icon}</span>}
-                    <span className="text-text-tertiary">{row.menu_count ?? (row.menus?.length || 0)} menus</span>
+                    <span className="min-w-0 flex-1 truncate font-medium text-text-primary">{row.name}</span>
+                    {row.icon && <span className="shrink-0 text-text-secondary">{row.icon}</span>}
+                    <span className="shrink-0 text-text-tertiary">{row.menu_count ?? (row.menus?.length || 0)} menus</span>
                   </div>
-                  <div className="flex items-center gap-1">
+                  <div className="flex shrink-0 items-center gap-1">
                     {canEdit('menu-sections') && (
                       <button
                         onClick={() => {

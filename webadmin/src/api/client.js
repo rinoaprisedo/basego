@@ -1,7 +1,7 @@
 import axios from 'axios'
 import useApiTimingStore from '../store/apiTimingStore'
 
-const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8500/api/v1'
+const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8800/api/v1'
 
 const client = axios.create({
   baseURL,

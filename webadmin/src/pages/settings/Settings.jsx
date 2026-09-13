@@ -87,12 +87,12 @@ function Settings() {
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-1 border-b border-surface-border">
+      <div className="flex gap-1 overflow-x-auto border-b border-surface-border [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {tabs.map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-4 py-2 text-sm font-medium ${
+            className={`shrink-0 whitespace-nowrap px-4 py-2 text-sm font-medium ${
               tab === t ? 'border-b-2 border-primary text-primary' : 'text-text-secondary hover:text-text-primary'
             }`}
           >

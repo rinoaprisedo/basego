@@ -6,10 +6,11 @@ Guidance for Claude Code working in this repo. Read this first — it should cov
 
 Full-stack admin panel boilerplate: **Go (Gin + GORM)** backend, **React (Vite)** frontend, **Redis**-backed sessions, **PostgreSQL** by default (MySQL-switchable via `DB_DRIVER`).
 
-- Backend: `backend/` — module-per-feature under `modules/`, runs on `:8500`
-- Frontend: `frontend/` — Vite dev server on `:8501` (see `vite.config.js`)
-- Mobile app: `app/` — Flutter boilerplate (Riverpod + go_router), web dev server on `:8502`
-- Local infra: `docker-compose.yml` (postgres, redis, backend, frontend)
+- Backend: `backend/` — module-per-feature under `modules/`, runs on `:8800`
+- Frontend: `webadmin/` — Vite dev server on `:8801` (see `vite.config.js`)
+- Mobile app: `mobile/` — Flutter boilerplate (Riverpod + go_router), web dev server on `:8802`
+- Local infra: `docker-compose.yml` (postgres, redis, backend, webadmin) — see **Local dev setup** below for how this environment actually runs it (DB/Redis in Docker, app processes native)
+- Ports are tracked in `port-mapping.md` (source of truth) — BE 8800, WEBADMIN 8801, MOBILE 8802, POSTGRES 5401, REDIS 6301
 
 ## Commands
 
@@ -23,13 +24,40 @@ go run main.go                      # start server (needs docs/ generated first,
 swag init -g main.go -o docs        # regenerate Swagger — docs/ is gitignored but main.go imports it
 
 # Frontend
-cd frontend
+cd webadmin
 npm run build                       # production build — run after every frontend change to catch errors
-npm run dev                         # dev server on :8501
+npm run dev                         # dev server on :8801
 npm test                            # vitest — only 3 test files exist (validation, cn, Button), minimal coverage
 ```
 
 There is no lint script configured on the frontend, and **no Go tests exist anywhere in `backend/`**. `go build ./...` and `npm run build` are the two commands to always run before calling a change done — treat a clean build as the minimum bar, not proof of correctness.
+
+## Local dev setup (this environment)
+
+This machine runs a **hybrid** setup, not the full `docker-compose.yml` stack: only Postgres and Redis run in Docker (project name `basego`, so containers are `basego-postgres-1`/`basego-redis-1`); `backend` and `webadmin` run natively on the host so edits hot-reload without a rebuild. Ports match `port-mapping.md`.
+
+```bash
+# 1. Postgres + Redis only, under the `basego` compose project
+docker compose -p basego up -d postgres redis
+
+# 2. Backend — first time only: copy env, generate Swagger docs, migrate + seed
+cd backend
+cp .env.example .env            # already has DB_PORT=5401 / REDIS_PORT=6301 / APP_PORT=8800
+swag init -g main.go -o docs    # docs/ is gitignored, main.go imports it — required before `go run`
+go run main.go migrate
+go run main.go seed
+go run main.go                  # backend on :8800
+
+# 3. Frontend (separate terminal)
+cd webadmin
+cp .env.example .env            # VITE_API_URL=http://localhost:8800/api/v1
+npm install
+npm run dev                     # webadmin on :8801 (port set in vite.config.js, not Vite's default)
+```
+
+Login: `admin@example.com` / `Admin@12345`. Swagger UI: `http://localhost:8800/swagger/index.html` (superadmin session required).
+
+If `go`, `docker`, or `gh` aren't on `PATH` in a fresh shell, this Mac needed Xcode Command Line Tools + Homebrew installed first (`brew install go`), and Docker Desktop's CLI symlinked manually from `/Applications/Docker.app/Contents/Resources/bin/` into `/opt/homebrew/bin` — a one-time machine-setup issue, not a repo issue.
 
 ## Backend architecture
 
@@ -74,10 +102,10 @@ Generic key-value table (`modules/settings`) — adding a new setting is just a 
 - `session_auth.go` — Redis session check, attaches user/superadmin/token to Gin context.
 - `permission.go` — `RequirePermission` (the `guard()` used everywhere).
 - `rate_limit.go` — generic `RateLimit` (fixed-window Redis counter) + `LoginLockout`/`RegisterLoginFailure`/`ClearLoginFailures`.
-- `security.go` — `CORSMiddleware` (comma-separated origin whitelist via `FRONTEND_URL`, e.g. `http://localhost:8501,http://localhost:8502` for the React admin + Flutter web dev server), `SecurityHeaders` (CSP + X-Frame-Options + X-Content-Type-Options + HSTS + Referrer-Policy; CSP has a relaxed variant scoped to `/swagger` for swagger-ui's inline scripts), `RequestSizeLimit`.
+- `security.go` — `CORSMiddleware` (comma-separated origin whitelist via `FRONTEND_URL`, e.g. `http://localhost:8801,http://localhost:8802` for the React admin + Flutter web dev server), `SecurityHeaders` (CSP + X-Frame-Options + X-Content-Type-Options + HSTS + Referrer-Policy; CSP has a relaxed variant scoped to `/swagger` for swagger-ui's inline scripts), `RequestSizeLimit`.
 - `csrf.go` — double-submit-cookie: issues a non-httpOnly `csrf_token` cookie, requires header `X-CSRF-Token` to match on any non-safe method (403 otherwise).
 - `maintenance.go` — `MaintenanceMode`, see Settings above.
-- `frontend/nginx.conf` sets the *real* production CSP for the SPA HTML (more critical than the backend's, since that's what a browser actually executes for the app itself).
+- `webadmin/nginx.conf` sets the *real* production CSP for the SPA HTML (more critical than the backend's, since that's what a browser actually executes for the app itself).
 
 ### Config & env
 
@@ -104,28 +132,28 @@ Seeder (`database/seeders/seed.go`) is idempotent (`FirstOrCreate` throughout): 
 - Toasts: `react-hot-toast`, configured in `main.jsx` — `bottom-right`, solid colored blocks per type (not thin border accents), loading toast uses the dynamic primary color CSS var.
 - Dashboard (`pages/dashboard/Dashboard.jsx`) is currently an intentionally empty placeholder (`<div className="space-y-6" />`) — the stat cards/recent-activity table that used to live there were removed.
 
-## Mobile app (`app/`)
+## Mobile app (`mobile/`)
 
 Flutter boilerplate (managed via `fvm`, channel `stable`) consuming the same backend as the React admin — feature-first structure (`lib/core/` cross-cutting, `lib/features/<name>/{data,domain,presentation}` per module, `lib/shell/` for the bottom-nav shell) mirroring the backend's own module-per-feature convention. State/routing: Riverpod 3 + go_router. Screens: Login, Home ("Hello World" placeholder), Profile (name/email/logout/app version via `package_info_plus`).
 
 - **Auth is cookie-based, not bearer-token** — the backend only understands the `session` httpOnly cookie (see Auth & sessions above) and the `csrf_token` double-submit cookie, which applies to `/auth/login` too. `lib/core/network/dio_client.dart` replays these like a browser via a platform-conditional cookie layer (`cookie_support/`): `cookie_support_io.dart` uses a real `PersistCookieJar` (mobile/desktop, cookies aren't handled by Dio itself there); `cookie_support_web.dart` sets `withCredentials` on Dio's `BrowserHttpClientAdapter` and reads `csrf_token` out of `document.cookie` instead, since the browser owns cookie storage natively on that target. Don't reintroduce an `Authorization: Bearer` header — the backend doesn't read one.
-- **Env config** (`lib/core/config/env.dart`): `AppConfig.current` picks `dev` (`http://10.0.2.2:8500/api/v1` — the Android-emulator alias for the host's localhost) or `prod` (placeholder `https://api.yourapp.com/api/v1`, replace before shipping) via `--dart-define=ENV=prod`. `10.0.2.2` doesn't resolve on web/desktop/iOS-simulator, so there's an escape hatch: `--dart-define=API_BASE_URL=http://localhost:8500/api/v1` overrides the base URL outright regardless of `ENV`.
+- **Env config** (`lib/core/config/env.dart`): `AppConfig.current` picks `dev` (`http://10.0.2.2:8800/api/v1` — the Android-emulator alias for the host's localhost) or `prod` (placeholder `https://api.yourapp.com/api/v1`, replace before shipping) via `--dart-define=ENV=prod`. `10.0.2.2` doesn't resolve on web/desktop/iOS-simulator, so there's an escape hatch: `--dart-define=API_BASE_URL=http://localhost:8800/api/v1` overrides the base URL outright regardless of `ENV`.
 - **Primary color** is pulled at boot from `GET /settings/public` (`features/settings/`, `AppSettings.primaryColor`) and fed into `ColorScheme.fromSeed` in `core/theme/app_theme.dart` — same mechanism as the React frontend's `applyPrimaryColor`, so branding stays in sync across web admin and mobile. Falls back to `AppColors.defaultPrimary` (`#C2622E`, matches the React default) if the key is unset (fresh install) or malformed.
-- **Running the web target locally**: `fvm flutter run -d web-server --web-port=8502 --dart-define=API_BASE_URL=http://localhost:8500/api/v1`. Use `-d web-server`, not `-d chrome` — the latter auto-launches a managed Chrome window on every run, which isn't wanted for headless/background dev sessions. With `web-server` you open http://localhost:8502 yourself in whatever browser you want. `FRONTEND_URL` in the backend `.env` is comma-separated (`http://localhost:8501,http://localhost:8502` by default) specifically so the React admin and the Flutter web dev server can both call the API from the browser without CORS 403s — `middleware/security.go`'s `CORSMiddleware` splits it into the CORS allowlist. If you add another web-facing dev port, extend this list rather than replacing it. Native builds (Android/iOS) aren't affected either way: CORS is a browser-only mechanism, and native HTTP clients don't send an `Origin` header.
+- **Running the web target locally**: `fvm flutter run -d web-server --web-port=8802 --dart-define=API_BASE_URL=http://localhost:8800/api/v1`. Use `-d web-server`, not `-d chrome` — the latter auto-launches a managed Chrome window on every run, which isn't wanted for headless/background dev sessions. With `web-server` you open http://localhost:8802 yourself in whatever browser you want. `FRONTEND_URL` in the backend `.env` is comma-separated (`http://localhost:8801,http://localhost:8802` by default) specifically so the React admin and the Flutter web dev server can both call the API from the browser without CORS 403s — `middleware/security.go`'s `CORSMiddleware` splits it into the CORS allowlist. If you add another web-facing dev port, extend this list rather than replacing it. Native builds (Android/iOS) aren't affected either way: CORS is a browser-only mechanism, and native HTTP clients don't send an `Origin` header.
 
 ## Testing
 
-Frontend: Vitest, 3 files total (`utils/validation.test.js`, `utils/cn.test.js`, `components/ui/Button.test.jsx`) — minimal coverage, no integration/e2e. Run with `npm test` in `frontend/`.
+Frontend: Vitest, 3 files total (`utils/validation.test.js`, `utils/cn.test.js`, `components/ui/Button.test.jsx`) — minimal coverage, no integration/e2e. Run with `npm test` in `webadmin/`.
 
 Backend: **zero test files exist**. If asked to add backend tests, there's no existing convention to follow — establish one (likely table-driven `_test.go` next to the file under test, matching Go norms) rather than assuming a pattern.
 
 ## Docker
 
-`docker-compose.yml`: `postgres` (15-alpine, host port 5433), `redis` (7-alpine, host port 6379, **no password**), `backend` (build `./backend`, port 8500, `.env` + compose-level overrides for `DB_HOST`/`REDIS_HOST`/`FRONTEND_URL` since those need Docker network hostnames), `frontend` (build `./frontend`, port 8501, nginx-served build).
+`docker-compose.yml`: `postgres` (18-alpine, host port 5401), `redis` (7-alpine, host port 6301, **no password**), `backend` (build `./backend`, port 8800, `.env` + compose-level overrides for `DB_HOST`/`REDIS_HOST`/`FRONTEND_URL` since those need Docker network hostnames), `webadmin` (build `./webadmin`, port 8801, nginx-served build).
 
 `backend/Dockerfile`: multi-stage — `golang:1.26-alpine` builder runs `swag init` (regenerates `docs/`, gitignored) before compiling a static (`CGO_ENABLED=0`) binary, copied into a slim `alpine:3.20` runtime with `ca-certificates`. Also copies the `storage/` directory into the image, but **uploads aren't a mounted volume** in compose — avatar/logo/favicon uploads are lost on container rebuild unless you add one.
 
-`frontend/Dockerfile`: `node:20-alpine` build stage (`npm install && npm run build`) → served by `nginx:1.27-alpine`, custom `nginx.conf` (SPA fallback + the production CSP/security headers mentioned above).
+`webadmin/Dockerfile`: `node:20-alpine` build stage (`npm install && npm run build`) → served by `nginx:1.27-alpine`, custom `nginx.conf` (SPA fallback + the production CSP/security headers mentioned above).
 
 ## Conventions
 

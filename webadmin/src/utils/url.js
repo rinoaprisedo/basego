@@ -1,4 +1,4 @@
-const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:8500/api/v1'
+const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:8800/api/v1'
 export const apiOrigin = apiBase.replace(/\/api\/v1\/?$/, '')
 
 // Settings store relative storage paths (e.g. "settings/abc123.png"); the

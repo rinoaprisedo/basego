@@ -80,7 +80,7 @@ function ActivityLogs() {
           >
             {(close) => (
               <div className="w-full p-3 sm:w-[420px]">
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <Select label="Action" value={draftAction} onChange={(e) => setDraftAction(e.target.value)}>
                     <option value="">All</option>
                     {['create', 'update', 'delete', 'login', 'logout', 'view'].map((a) => (

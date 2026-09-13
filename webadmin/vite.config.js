@@ -9,7 +9,7 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
   },
-  server: { port: 8881 },
+  server: { port: 8801 },
   test: {
     environment: 'jsdom',
     globals: true,

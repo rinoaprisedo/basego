@@ -144,17 +144,17 @@ function Menus() {
                           resetDrag()
                         }}
                         onDragEnd={resetDrag}
-                        className={`flex items-center justify-between px-4 py-2.5 ${isDragging ? 'opacity-40' : ''} ${isOver ? 'border-t-2 border-primary' : ''}`}
+                        className={`flex items-center justify-between gap-3 px-4 py-2.5 ${isDragging ? 'opacity-40' : ''} ${isOver ? 'border-t-2 border-primary' : ''}`}
                       >
-                        <div className="flex items-center gap-3 text-sm">
+                        <div className="flex min-w-0 items-center gap-3 text-sm">
                           {draggable && (
                             <GripVertical size={14} className="shrink-0 cursor-grab text-text-secondary active:cursor-grabbing" />
                           )}
-                          <span className="font-medium text-text-primary">{m.name}</span>
-                          <span className="text-text-secondary">{m.path}</span>
+                          <span className="shrink-0 font-medium text-text-primary">{m.name}</span>
+                          <span className="min-w-0 flex-1 truncate text-text-secondary">{m.path}</span>
                           <Badge variant={m.is_active ? 'success' : 'neutral'}>{m.is_active ? 'active' : 'inactive'}</Badge>
                         </div>
-                        <div className="flex items-center gap-1">
+                        <div className="flex shrink-0 items-center gap-1">
                           {canEdit('menus') && (
                             <button
                               onClick={() => {

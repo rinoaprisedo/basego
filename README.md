@@ -10,18 +10,30 @@ Full-stack admin panel base project — Go (Gin + GORM) backend, React (Vite) fr
 - Redis 7 (or use Docker)
 - Docker + Docker Compose (optional, recommended for local dev)
 
-## Quick start (Docker)
+## Quick start (Docker, full stack)
+
+Runs postgres, redis, backend, and webadmin all as containers, grouped under the `basego` compose project:
 
 ```bash
 cp backend/.env.example backend/.env
-docker compose up -d --build
-docker compose exec backend ./baseadmin migrate
-docker compose exec backend ./baseadmin seed
+docker compose -p basego up -d --build
+docker compose -p basego exec backend ./baseadmin migrate
+docker compose -p basego exec backend ./baseadmin seed
 ```
 
-- Backend: http://localhost:8500
-- Frontend: http://localhost:8501
+- Backend: http://localhost:8800
+- Frontend: http://localhost:8801
 - Default login: `admin@example.com` / `Admin@12345`
+
+## Local dev (hybrid: DB/Redis in Docker, apps native)
+
+The usual day-to-day setup — only postgres/redis run in Docker (so backend/frontend edits hot-reload without a container rebuild):
+
+```bash
+docker compose -p basego up -d postgres redis
+```
+
+Then follow **Manual setup** below for the backend and frontend. Ports (see `port-mapping.md`): backend `8800`, webadmin `8801`, mobile `8802`, postgres `5401`, redis `6301` — already the defaults in `backend/.env.example` / `webadmin/.env.example`.
 
 ## Manual setup
 
@@ -34,16 +46,16 @@ go install github.com/swaggo/swag/cmd/swag@latest
 swag init -g main.go -o docs   # generates docs/ — gitignored, main.go imports it, so this must run first on a fresh clone
 go run main.go migrate
 go run main.go seed
-go run main.go          # starts server on APP_PORT (default 8500)
+go run main.go          # starts server on APP_PORT (default 8800)
 ```
 
 ### Frontend
 
 ```bash
-cd frontend
-cp .env.example .env   # set VITE_API_URL if backend isn't on localhost:8500
+cd webadmin
+cp .env.example .env   # set VITE_API_URL if backend isn't on localhost:8800
 npm install
-npm run dev             # dev server on :8501 (see vite.config.js)
+npm run dev             # dev server on :8801 (see vite.config.js)
 npm run build            # production build → dist/
 ```
 
@@ -75,7 +87,7 @@ See `backend/.env.example` for the full list (app, DB, Redis, session, storage, 
 - **Settings**: app name, logo, favicon, base/primary color (live color picker, applied instantly via a CSS custom property so it doesn't require a rebuild), maintenance mode. Branding fields are also exposed unauthenticated at `GET /settings/public` so the login page renders correctly before a session exists.
 - **Activity logs**: audit trail (actor, action, module, before/after diff, IP, user agent) with filtering; `DELETE /activity-logs/cleanup` prunes rows older than `LOG_CLEANUP_DAYS` (manual trigger — see Known TODOs).
 - **UI toolbar**: a shadcn-style grouped menubar (`components/ui/Menubar.jsx`) is the standard per-page toolbar — title + actions (Add New, Filter, Others/export) live in one bar in the Navbar, registered per-page via the `usePageActions` hook + `pageActionsStore`. Filter/dropdown panels render through a React portal so they aren't clipped by the toolbar's horizontal scroll container.
-- **Security headers**: CSP (stricter default policy; a slightly relaxed one scoped to `/swagger` for swagger-ui's inline scripts), `X-Frame-Options`, `X-Content-Type-Options`, HSTS, `Referrer-Policy` — see `middleware/security.go` (backend/API) and `frontend/nginx.conf` (the actual SPA HTML, more critical since it's what a browser executes).
+- **Security headers**: CSP (stricter default policy; a slightly relaxed one scoped to `/swagger` for swagger-ui's inline scripts), `X-Frame-Options`, `X-Content-Type-Options`, HSTS, `Referrer-Policy` — see `middleware/security.go` (backend/API) and `webadmin/nginx.conf` (the actual SPA HTML, more critical since it's what a browser executes).
 - **Dependency scanning**: `.github/workflows/security-scan.yml` runs `govulncheck` (Go) and `npm audit --audit-level=high` on every push/PR to `main` plus a weekly schedule; `.github/dependabot.yml` opens weekly update PRs for Go modules, npm, and both Dockerfiles.
 
 ## Folder structure
@@ -93,16 +105,21 @@ See `backend/.env.example` for the full list (app, DB, Redis, session, storage, 
 │   ├── session/                # Redis session store
 │   ├── storage/                # StorageInterface + local disk implementation
 │   └── utils/                   # shared model helpers
-└── frontend/
-    ├── nginx.conf             # security headers for the built SPA in production
-    └── src/
-        ├── api/                # axios client + per-resource wrappers
-        ├── components/         # ui/ (Button, Table, Modal, Menubar, ...) and layout/ (Sidebar, Navbar)
-        ├── hooks/               # usePermission, usePageActions
-        ├── pages/                # auth, dashboard, users, menus, menu_sections, roles, settings, activity_logs
-        ├── router/               # route guards
-        ├── store/                # Zustand: authStore, settingsStore, sidebarStore, pageActionsStore
-        └── utils/                # color.js (hex ↔ CSS var helpers for the live base-color picker), url.js, validation.js
+├── webadmin/
+│   ├── nginx.conf             # security headers for the built SPA in production
+│   └── src/
+│       ├── api/                # axios client + per-resource wrappers
+│       ├── components/         # ui/ (Button, Table, Modal, Menubar, ...) and layout/ (Sidebar, Navbar)
+│       ├── hooks/               # usePermission, usePageActions
+│       ├── pages/                # auth, dashboard, users, menus, menu_sections, roles, settings, activity_logs
+│       ├── router/               # route guards
+│       ├── store/                # Zustand: authStore, settingsStore, sidebarStore, pageActionsStore
+│       └── utils/                # color.js (hex ↔ CSS var helpers for the live base-color picker), url.js, validation.js
+└── mobile/
+    └── lib/
+        ├── core/                # config (env/API base URL), network (dio_client + cookie_support), router, theme, shared widgets
+        ├── features/             # auth, home, calendar, explore, inbox, profile, settings — feature-first, {data,domain,presentation} per module
+        └── shell/                # bottom-nav shell wrapping the feature screens
 ```
 
 ## API docs
@@ -110,7 +127,7 @@ See `backend/.env.example` for the full list (app, DB, Redis, session, storage, 
 Swagger annotations are on every handler and already wired up. `docs/` (the generated Go package `main.go` imports) is **gitignored** and rebuilt via `swag init -g main.go -o docs` — the Docker build does this automatically (see `backend/Dockerfile`); for manual/local runs you need to run it yourself first (see Manual setup above), and again any time you change handler doc-comments. View the UI at:
 
 ```
-http://localhost:8500/swagger/index.html
+http://localhost:8800/swagger/index.html
 ```
 
 Requires an authenticated **superadmin** session (`requireSuperadmin` guard on the route).

@@ -46,18 +46,18 @@ func Load() *Config {
 
 	Cfg = &Config{
 		AppEnv:      getEnv("APP_ENV", "development"),
-		AppPort:     getEnv("APP_PORT", "8500"),
-		FrontendURL: getEnv("FRONTEND_URL", "http://localhost:8501,http://localhost:8502"),
+		AppPort:     getEnv("APP_PORT", "8800"),
+		FrontendURL: getEnv("FRONTEND_URL", "http://localhost:8801,http://localhost:8802"),
 
 		DBDriver: getEnv("DB_DRIVER", "postgres"),
 		DBHost:   getEnv("DB_HOST", "localhost"),
-		DBPort:   getEnv("DB_PORT", "5433"),
+		DBPort:   getEnv("DB_PORT", "5401"),
 		DBUser:   getEnv("DB_USER", "postgres"),
 		DBPass:   getEnv("DB_PASS", "password"),
 		DBName:   getEnv("DB_NAME", "baseadmin"),
 
 		RedisHost: getEnv("REDIS_HOST", "localhost"),
-		RedisPort: getEnv("REDIS_PORT", "6379"),
+		RedisPort: getEnv("REDIS_PORT", "6301"),
 		RedisPass: getEnv("REDIS_PASS", ""),
 		RedisDB:   getEnvInt("REDIS_DB", 0),
 

@@ -8,8 +8,8 @@ import (
 )
 
 // CORSMiddleware whitelists the configured frontend origin(s). frontendURLs
-// is comma-separated (e.g. the React admin on :8501 and the Flutter web dev
-// server on :8502 running side by side).
+// is comma-separated (e.g. the React admin on :8801 and the Flutter web dev
+// server on :8802 running side by side).
 func CORSMiddleware(frontendURLs string) gin.HandlerFunc {
 	var origins []string
 	for _, o := range strings.Split(frontendURLs, ",") {

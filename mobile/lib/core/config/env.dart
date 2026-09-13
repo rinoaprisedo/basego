@@ -10,7 +10,7 @@ class AppConfig {
 
   // 10.0.2.2 is the Android emulator's alias for the host machine's
   // localhost. iOS simulators can reach the host directly via localhost.
-  static const dev = AppConfig._(Env.dev, 'http://10.0.2.2:8500/api/v1');
+  static const dev = AppConfig._(Env.dev, 'http://10.0.2.2:8800/api/v1');
 
   // Placeholder — replace with the real production API host before release.
   static const prod = AppConfig._(Env.prod, 'https://api.yourapp.com/api/v1');
