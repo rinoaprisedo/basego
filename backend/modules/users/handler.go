@@ -110,6 +110,7 @@ func (h *Handler) Create(c *gin.Context) {
 type updateRequest struct {
 	Name     string  `json:"name"`
 	Email    string  `json:"email"`
+	Password string  `json:"password"`
 	Status   string  `json:"status"`
 	RoleUUID *string `json:"role_uuid"`
 }
@@ -131,7 +132,7 @@ func (h *Handler) Update(c *gin.Context) {
 	}
 
 	actorID := utils.CurrentUserID(c)
-	in := UpdateInput{Name: req.Name, Email: req.Email, Status: req.Status, ActorID: actorID}
+	in := UpdateInput{Name: req.Name, Email: req.Email, Password: req.Password, Status: req.Status, ActorID: actorID}
 	if req.RoleUUID != nil {
 		in.RoleProvided = true
 		in.RoleUUID = *req.RoleUUID

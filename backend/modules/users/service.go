@@ -101,6 +101,7 @@ func (s *Service) Create(in CreateInput) (*User, error) {
 type UpdateInput struct {
 	Name         string
 	Email        string
+	Password     string
 	Status       string
 	RoleUUID     string
 	RoleProvided bool
@@ -117,12 +118,20 @@ func (s *Service) Update(uuidStr string, in UpdateInput) (before *User, after *U
 	old := *user
 	statusChanged := in.Status != "" && UserStatus(in.Status) != old.Status
 	roleChanged := in.RoleProvided && (old.Role == nil || old.Role.UUID.String() != in.RoleUUID)
+	passwordChanged := in.Password != ""
 
 	if in.Name != "" {
 		user.Name = in.Name
 	}
 	if in.Email != "" {
 		user.Email = in.Email
+	}
+	if passwordChanged {
+		hashed, err := bcrypt.GenerateFromPassword([]byte(in.Password), 12)
+		if err != nil {
+			return nil, nil, err
+		}
+		user.Password = string(hashed)
 	}
 	if in.Status != "" {
 		user.Status = UserStatus(in.Status)
@@ -136,7 +145,10 @@ func (s *Service) Update(uuidStr string, in UpdateInput) (before *User, after *U
 		_ = s.repo.SetRole(user, in.RoleUUID)
 	}
 
-	if statusChanged || roleChanged {
+	// A password set here is an admin forcing a new credential onto another
+	// user's account (unlike self-service ChangePassword) — kick out any
+	// existing sessions immediately, same as ResetPassword does.
+	if statusChanged || roleChanged || passwordChanged {
 		s.invalidateSessions(user.ID)
 	}
 
