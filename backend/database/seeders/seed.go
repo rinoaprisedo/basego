@@ -3,7 +3,6 @@ package seeders
 import (
 	"log"
 
-	"baseadmin/backend/modules/menu_sections"
 	"baseadmin/backend/modules/menus"
 	"baseadmin/backend/modules/permissions"
 	"baseadmin/backend/modules/roles"
@@ -28,11 +27,11 @@ func Run(db *gorm.DB) {
 
 func seedSuperadminRole(db *gorm.DB) roles.Role {
 	var role roles.Role
-	db.Where("name = ?", "Superadmin").FirstOrCreate(&role, roles.Role{
+	db.Where("name = ?", "Superadmin").Attrs(roles.Role{
 		Name:         "Superadmin",
 		Description:  "Full system access. Cannot be deleted or demoted.",
 		IsSuperadmin: true,
-	})
+	}).FirstOrCreate(&role)
 	return role
 }
 
@@ -87,34 +86,34 @@ type menuDef struct {
 }
 
 func seedMenus(db *gorm.DB) []uint64 {
+	removeMergedMenus(db)
 	sections := []struct {
-		Section menu_sections.MenuSection
+		Section menus.MenuSection
 		Menus   []menuDef
 	}{
 		{
-			Section: menu_sections.MenuSection{Name: "Dashboard", Icon: "LayoutDashboard", Order: 1},
+			Section: menus.MenuSection{Name: "Dashboard", Icon: "LayoutDashboard", Order: 1},
 			Menus: []menuDef{
 				{Name: "Dashboard", Icon: "LayoutDashboard", Path: "/"},
 			},
 		},
 		{
-			Section: menu_sections.MenuSection{Name: "User Management", Icon: "Users", Order: 2},
+			Section: menus.MenuSection{Name: "User Management", Icon: "Users", Order: 2},
 			Menus: []menuDef{
 				{Name: "Users", Icon: "User", Path: "users"},
 				{Name: "Roles", Icon: "Shield", Path: "roles"},
 			},
 		},
 		{
-			Section: menu_sections.MenuSection{Name: "System", Icon: "Settings", Order: 3},
+			Section: menus.MenuSection{Name: "System", Icon: "Settings", Order: 3},
 			Menus: []menuDef{
 				{Name: "Menus", Icon: "Menu", Path: "menus"},
-				{Name: "Menu Sections", Icon: "FolderTree", Path: "menu-sections"},
 				{Name: "Settings", Icon: "Settings", Path: "settings"},
 				{Name: "Activity Logs", Icon: "History", Path: "activity-logs"},
 			},
 		},
 		{
-			Section: menu_sections.MenuSection{Name: "Development", Icon: "Code", Order: 4},
+			Section: menus.MenuSection{Name: "Development", Icon: "Code", Order: 4},
 			Menus: []menuDef{
 				{Name: "Tiket", Icon: "Ticket", Path: "dev-tickets"},
 			},
@@ -123,19 +122,19 @@ func seedMenus(db *gorm.DB) []uint64 {
 
 	var menuIDs []uint64
 	for _, s := range sections {
-		var section menu_sections.MenuSection
-		db.Where("name = ?", s.Section.Name).FirstOrCreate(&section, s.Section)
+		var section menus.MenuSection
+		db.Where("name = ?", s.Section.Name).Attrs(s.Section).FirstOrCreate(&section)
 
 		for i, m := range s.Menus {
 			var menu menus.Menu
-			db.Where("path = ?", m.Path).FirstOrCreate(&menu, menus.Menu{
+			db.Where("path = ?", m.Path).Attrs(menus.Menu{
 				MenuSectionID: section.ID,
 				Name:          m.Name,
 				Icon:          m.Icon,
 				Path:          m.Path,
 				Order:         i + 1,
 				IsActive:      true,
-			})
+			}).FirstOrCreate(&menu)
 			menuIDs = append(menuIDs, menu.ID)
 		}
 	}
@@ -145,14 +144,14 @@ func seedMenus(db *gorm.DB) []uint64 {
 func seedPermissions(db *gorm.DB, roleID uint64, menuIDs []uint64) {
 	for _, menuID := range menuIDs {
 		var perm permissions.Permission
-		db.Where("role_id = ? AND menu_id = ?", roleID, menuID).FirstOrCreate(&perm, permissions.Permission{
+		db.Where("role_id = ? AND menu_id = ?", roleID, menuID).Attrs(permissions.Permission{
 			RoleID:    roleID,
 			MenuID:    menuID,
 			CanView:   true,
 			CanCreate: true,
 			CanEdit:   true,
 			CanDelete: true,
-		})
+		}).FirstOrCreate(&perm)
 	}
 }
 
@@ -173,6 +172,17 @@ func seedSettings(db *gorm.DB) {
 	}
 	for key, t := range defaults {
 		var s settings.Setting
-		db.Where("key = ?", key).FirstOrCreate(&s, settings.Setting{Key: key, Value: values[key], Type: t})
+		db.Where("key = ?", key).Attrs(settings.Setting{Key: key, Value: values[key], Type: t}).FirstOrCreate(&s)
 	}
+}
+
+// removeMergedMenus drops the standalone "menu-sections" menu (its screen is
+// now a tab of Menus) together with the permission rows that pointed at it.
+func removeMergedMenus(db *gorm.DB) {
+	var old menus.Menu
+	if db.Where("path = ?", "menu-sections").First(&old).Error != nil {
+		return
+	}
+	db.Unscoped().Where("menu_id = ?", old.ID).Delete(&permissions.Permission{})
+	db.Delete(&old)
 }

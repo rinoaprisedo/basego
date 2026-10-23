@@ -5,7 +5,6 @@ import (
 
 	"baseadmin/backend/modules/activity_logs"
 	"baseadmin/backend/modules/dev_tickets"
-	"baseadmin/backend/modules/menu_sections"
 	"baseadmin/backend/modules/menus"
 	"baseadmin/backend/modules/permissions"
 	"baseadmin/backend/modules/roles"
@@ -23,7 +22,7 @@ func Run(db *gorm.DB) {
 		&users.Session{},
 		&users.PasswordResetToken{},
 		&users.PasswordHistory{},
-		&menu_sections.MenuSection{},
+		&menus.MenuSection{},
 		&menus.Menu{},
 		&permissions.Permission{},
 		&settings.Setting{},

@@ -17,3 +17,15 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, sessionAuth gin.HandlerFun
 	g.DELETE("/:uuid", guard("menus", "delete"), h.Delete)
 	g.PUT("/reorder", guard("menus", "edit"), h.Reorder)
 }
+
+// RegisterSectionRoutes wires up /menu-sections/*, the sidebar groups that
+// menus belong to; every route is permission-guarded.
+func (h *Handler) RegisterSectionRoutes(rg *gin.RouterGroup, guard func(menuPath, action string) gin.HandlerFunc) {
+	g := rg.Group("/menu-sections")
+	g.GET("", guard("menus", "view"), h.ListSections)
+	g.GET("/:uuid", guard("menus", "view"), h.GetSection)
+	g.POST("", guard("menus", "create"), h.CreateSection)
+	g.PUT("/:uuid", guard("menus", "edit"), h.UpdateSection)
+	g.DELETE("/:uuid", guard("menus", "delete"), h.DeleteSection)
+	g.PUT("/reorder", guard("menus", "edit"), h.ReorderSections)
+}

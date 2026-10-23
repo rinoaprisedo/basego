@@ -61,11 +61,11 @@ If `go`, `docker`, or `gh` aren't on `PATH` in a fresh shell, this Mac needed Xc
 
 ## Backend architecture
 
-Each feature is a self-contained module under `backend/modules/<name>/`: `handler.go` (HTTP layer, Gin) → `service.go` (business rules) → `repository.go` (GORM/SQL) → `model.go` → `routes.go`. Modules: `auth`, `users`, `roles`, `permissions`, `menus`, `menu_sections`, `settings`, `activity_logs`, `dev_tickets`, `files`.
+Each feature is a self-contained module under `backend/modules/<name>/`: `handler.go` (HTTP layer, Gin) → `service.go` (business rules) → `repository.go` (GORM/SQL) → `model.go` → `routes.go`. Modules: `auth`, `users`, `roles`, `permissions`, `menus` (menus + menu sections in one package: `section_*.go` files, `/menu-sections` routes, `RegisterSectionRoutes`, all guarded by the single `menus` permission), `settings`, `activity_logs`, `dev_tickets`, `files`.
 
 ### Auth & sessions
 
-- Session token is a random 32-byte hex string (`crypto/rand`), *not* a signed/JWT-style token. **Redis is the source of truth** (`session:<token>` key + `user_sessions:<userID>` sorted set, `session/session.go`) — `middleware/session_auth.go` checks Redis on every request. The `sessions` DB table (a GORM model under `modules/users`, unrelated to the `session` package name) is a write-through mirror used only so `GET /users/:uuid/sessions` can list/revoke sessions in the admin UI. **When touching login/logout/session-revoke code, always mirror both sides** — see `session.Create`/`session.Delete`/`session.DeleteAllForUser`.
+- Session token is a random 32-byte hex string (`crypto/rand`), *not* a signed/JWT-style token. **Redis is the source of truth** (`session:<token>` key + `user_sessions:<userID>` sorted set, `session/session.go`) — `middleware/session_auth.go` checks Redis on every request. The `sessions` DB table (a GORM model under `modules/users`, unrelated to the `session` package name) is a write-through mirror (there is no admin UI to list/revoke individual sessions anymore). **When touching login/logout/session-revoke code, always mirror both sides** — see `session.Create`/`session.Delete`/`session.DeleteAllForUser`.
 - `session.Create` enforces `SESSION_MAX_CONCURRENT` by evicting the oldest token in the user's sorted set once the limit is exceeded. IP/user-agent are stored per session but never re-checked against later requests (no hijack detection).
 - Permissions are checked **fresh from DB on every request** (`middleware/permission.go`, `RequirePermission` — the `guard(menuPath, action)` function referenced in every module's `routes.go`) — no caching, so role/permission edits take effect on the very next request. Superadmin bypasses all checks (`utils.IsSuperadmin`, also re-checked fresh from DB per request via a join, not cached in the session token).
 - **Privilege-change session invalidation**: when a user's `role_id` or `status` changes (`modules/users/service.go`, `Update`/`UpdateStatus`), all of that user's sessions are force-invalidated (Redis + DB) via `Service.invalidateSessions`. Deliberate — a suspended/demoted user should be kicked out immediately, not just blocked on their next permission check. `ResetPassword` also calls `session.DeleteAllForUser`; `ChangePassword` (self-service) does **not** — other sessions stay alive after a normal password change.
@@ -80,6 +80,8 @@ Each feature is a self-contained module under `backend/modules/<name>/`: `handle
 - Superadmin role protection: can't be demoted, deleted, or have its permissions edited (`hasSuperadminRole` checks — preserve these when touching `users`/`roles` services). A role also can't be deleted while any user still has it assigned (`ErrRoleInUse`).
 
 ### Menus & menu sections
+
+- One module, one sidebar entry (`menus`), one permission. The web page `pages/menus/Menus.jsx` has two tabs (Menus / Sections). The seeder removes the old standalone `menu-sections` menu + its permission rows (`removeMergedMenus`).
 
 - `Menu.MenuSectionID` links to `MenuSection`; `Menu.MenuSectionUUID` is a transient (`gorm:"-"`) field populated in service code for API responses, not persisted.
 - Sidebar/admin tree building (`menus/service.go` `Tree`) buckets menus under their section; any menu whose section no longer matches a listed section gets collected into a synthetic `"Uncategorized"` group (not a real DB section).
@@ -116,7 +118,7 @@ Generic key-value table (`modules/settings`) — adding a new setting is just a 
 
 ### Database
 
-Migrations (`database/migrations/migrate.go`) run `AutoMigrate` over: `users.User`, `roles.Role`, `users.Session` (DB mirror, see Auth section), `users.PasswordResetToken`, `users.PasswordHistory`, `menu_sections.MenuSection`, `menus.Menu`, `permissions.Permission`, `settings.Setting`, `activity_logs.ActivityLog`, `dev_tickets.Ticket`, `dev_tickets.Comment`, `dev_tickets.APIToken` — then replaces GORM's plain unique indexes on `users.email`/`roles.name` with **partial** unique indexes (`WHERE deleted_at IS NULL`) so soft-deleted rows don't block reusing an email/name. Idempotent, safe to re-run.
+Migrations (`database/migrations/migrate.go`) run `AutoMigrate` over: `users.User`, `roles.Role`, `users.Session` (DB mirror, see Auth section), `users.PasswordResetToken`, `users.PasswordHistory`, `menus.MenuSection`, `menus.Menu`, `permissions.Permission`, `settings.Setting`, `activity_logs.ActivityLog`, `dev_tickets.Ticket`, `dev_tickets.Comment`, `dev_tickets.APIToken` — then replaces GORM's plain unique indexes on `users.email`/`roles.name` with **partial** unique indexes (`WHERE deleted_at IS NULL`) so soft-deleted rows don't block reusing an email/name. Idempotent, safe to re-run.
 
 Seeder (`database/seeders/seed.go`) is idempotent (`FirstOrCreate` throughout): superadmin role → superadmin user (`admin@example.com` / `Admin@12345`, only if absent) → default menus (4 sections: Dashboard, User Management, System, Development → Tiket) → full CRUD permissions for superadmin on every seeded menu → default settings (`app_name="BaseProject"`, empty logo/favicon, `maintenance_mode="false"`).
 

@@ -2,8 +2,6 @@ package menus
 
 import (
 	"errors"
-
-	"baseadmin/backend/modules/menu_sections"
 )
 
 var (
@@ -12,7 +10,7 @@ var (
 )
 
 type sectionWithMenus struct {
-	menu_sections.MenuSection
+	MenuSection
 	Menus []Menu `json:"menus"`
 }
 
@@ -62,7 +60,7 @@ func (s *Service) Tree(isActive, sectionUUID string) ([]sectionWithMenus, error)
 	}
 	if len(orphaned) > 0 {
 		result = append(result, sectionWithMenus{
-			MenuSection: menu_sections.MenuSection{Name: "Uncategorized", Icon: "FolderOpen"},
+			MenuSection: MenuSection{Name: "Uncategorized", Icon: "FolderOpen"},
 			Menus:       orphaned,
 		})
 	}

@@ -1,8 +1,6 @@
 package menus
 
 import (
-	"baseadmin/backend/modules/menu_sections"
-
 	"gorm.io/gorm"
 )
 
@@ -15,8 +13,8 @@ func NewRepository(db *gorm.DB) *Repository {
 	return &Repository{DB: db}
 }
 
-func (r *Repository) ListSections() ([]menu_sections.MenuSection, error) {
-	var sections []menu_sections.MenuSection
+func (r *Repository) ListSections() ([]MenuSection, error) {
+	var sections []MenuSection
 	err := r.DB.Order("\"order\" asc").Find(&sections).Error
 	return sections, err
 }
@@ -27,7 +25,7 @@ func (r *Repository) ListMenus(isActive, sectionUUID string) ([]Menu, error) {
 		q = q.Where("is_active = ?", isActive == "true")
 	}
 	if sectionUUID != "" {
-		var sec menu_sections.MenuSection
+		var sec MenuSection
 		if r.DB.Where("uuid = ?", sectionUUID).First(&sec).Error == nil {
 			q = q.Where("menu_section_id = ?", sec.ID)
 		}
@@ -46,7 +44,7 @@ func (r *Repository) FindByUUID(uuidStr string) (*Menu, error) {
 }
 
 func (r *Repository) SectionIDByUUID(uuidStr string) (uint64, error) {
-	var section menu_sections.MenuSection
+	var section MenuSection
 	if err := r.DB.Where("uuid = ?", uuidStr).First(&section).Error; err != nil {
 		return 0, err
 	}
@@ -54,7 +52,7 @@ func (r *Repository) SectionIDByUUID(uuidStr string) (uint64, error) {
 }
 
 func (r *Repository) SectionUUIDByID(id uint64) (string, error) {
-	var section menu_sections.MenuSection
+	var section MenuSection
 	if err := r.DB.Select("uuid").First(&section, id).Error; err != nil {
 		return "", err
 	}

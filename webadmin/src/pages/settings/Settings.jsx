@@ -1,3 +1,4 @@
+import Tabs from '../../components/ui/Tabs'
 import { useEffect, useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
@@ -87,19 +88,7 @@ function Settings() {
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-1 overflow-x-auto border-b border-surface-border [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {tabs.map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`shrink-0 whitespace-nowrap px-4 py-2 text-sm font-medium ${
-              tab === t ? 'border-b-2 border-primary text-primary' : 'text-text-secondary hover:text-text-primary'
-            }`}
-          >
-            {t}
-          </button>
-        ))}
-      </div>
+      <Tabs tabs={tabs} value={tab} onChange={setTab} />
 
       <div className="rounded-lg border border-surface-border bg-surface-card p-6">
         {tab === 'General' && (

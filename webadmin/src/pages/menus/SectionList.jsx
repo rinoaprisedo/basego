@@ -13,11 +13,11 @@ import {
   updateMenuSection,
   deleteMenuSection,
   reorderMenuSections,
-} from '../../api/menuSections'
+} from '../../api/menus'
 import usePermission from '../../hooks/usePermission'
 import usePageActions from '../../hooks/usePageActions'
 
-function MenuSections() {
+function SectionList() {
   const { canCreate, canEdit, canDelete } = usePermission()
   const queryClient = useQueryClient()
   const [formOpen, setFormOpen] = useState(false)
@@ -26,13 +26,13 @@ function MenuSections() {
   const [dragIndex, setDragIndex] = useState(null)
   const [overIndex, setOverIndex] = useState(null)
 
-  const { data, isLoading } = useQuery({ queryKey: ['menu-sections'], queryFn: () => getMenuSections({ limit: 100 }) })
+  const { data, isLoading } = useQuery({ queryKey: ['menus'], queryFn: () => getMenuSections({ limit: 100 }) })
 
   const saveMutation = useMutation({
     mutationFn: (payload) => (editing ? updateMenuSection(editing.uuid, payload) : createMenuSection(payload)),
     onSuccess: () => {
       toast.success(editing ? 'Section updated' : 'Section created')
-      queryClient.invalidateQueries({ queryKey: ['menu-sections'] })
+      queryClient.invalidateQueries({ queryKey: ['menus'] })
       setFormOpen(false)
       setEditing(null)
     },
@@ -43,7 +43,7 @@ function MenuSections() {
     mutationFn: (uuid) => deleteMenuSection(uuid),
     onSuccess: () => {
       toast.success('Section deleted')
-      queryClient.invalidateQueries({ queryKey: ['menu-sections'] })
+      queryClient.invalidateQueries({ queryKey: ['menus'] })
       setDeleting(null)
     },
     onError: (err) => toast.error(err.response?.data?.message || 'Delete failed'),
@@ -51,7 +51,7 @@ function MenuSections() {
 
   const reorderMutation = useMutation({
     mutationFn: (payload) => reorderMenuSections(payload),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['menu-sections'] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['menus'] }),
     onError: (err) => toast.error(err.response?.data?.message || 'Reorder failed'),
   })
 
@@ -75,8 +75,8 @@ function MenuSections() {
     useMemo(
       () => (
         <Menubar>
-          <MenubarLabel>Menu Sections</MenubarLabel>
-          {canCreate('menu-sections') && (
+          <MenubarLabel>Menus</MenubarLabel>
+          {canCreate('menus') && (
             <>
               <MenubarSeparator />
               <MenubarAction
@@ -105,7 +105,7 @@ function MenuSections() {
         <div className="rounded-lg border border-surface-border bg-surface-card">
           <ul className="divide-y divide-surface-border">
             {sections.map((row, i) => {
-              const draggable = canEdit('menu-sections')
+              const draggable = canEdit('menus')
               const isDragging = dragIndex === i
               const isOver = overIndex === i && dragIndex !== i
               return (
@@ -134,7 +134,7 @@ function MenuSections() {
                     <span className="shrink-0 text-text-tertiary">{row.menu_count ?? (row.menus?.length || 0)} menus</span>
                   </div>
                   <div className="flex shrink-0 items-center gap-1">
-                    {canEdit('menu-sections') && (
+                    {canEdit('menus') && (
                       <button
                         onClick={() => {
                           setEditing(row)
@@ -145,7 +145,7 @@ function MenuSections() {
                         <Pencil size={14} />
                       </button>
                     )}
-                    {canDelete('menu-sections') && (
+                    {canDelete('menus') && (
                       <button onClick={() => setDeleting(row)} className="rounded p-1.5 text-danger hover:bg-danger/10">
                         <Trash2 size={14} />
                       </button>
@@ -177,4 +177,4 @@ function MenuSections() {
   )
 }
 
-export default MenuSections
+export default SectionList

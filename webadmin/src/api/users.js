@@ -8,9 +8,6 @@ export const deleteUser = (uuid) => client.delete(`/users/${uuid}`).then((r) => 
 export const updateUserStatus = (uuid, status) => client.put(`/users/${uuid}/status`, { status }).then((r) => r.data)
 export const uploadAvatar = (uuid, formData) =>
   client.post(`/users/${uuid}/avatar`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }).then((r) => r.data)
-export const getUserSessions = (uuid) => client.get(`/users/${uuid}/sessions`).then((r) => r.data)
-export const deleteUserSession = (uuid, sessionUuid) =>
-  client.delete(`/users/${uuid}/sessions/${sessionUuid}`).then((r) => r.data)
 
 function downloadFile(blob, filename) {
   const url = window.URL.createObjectURL(blob)

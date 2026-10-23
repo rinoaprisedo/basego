@@ -162,13 +162,15 @@ func (h *Handler) Update(c *gin.Context) {
 // @Router			/users/{uuid} [delete]
 func (h *Handler) Delete(c *gin.Context) {
 	actorID := utils.CurrentUserID(c)
-	user, err := h.Service.Delete(c.Param("uuid"), actorID)
+	user, err := h.Service.Delete(c.Param("uuid"), actorID, utils.IsSuperadmin(c))
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrNotFound):
 			utils.Error(c, 404, "user not found")
 		case errors.Is(err, ErrSuperadminLocked):
-			utils.Error(c, 403, "superadmin user cannot be deleted")
+			utils.Error(c, 403, "only a superadmin can delete a superadmin user")
+		case errors.Is(err, ErrSelfDelete):
+			utils.Error(c, 403, "you cannot delete your own account")
 		default:
 			utils.Error(c, 500, "failed to delete user")
 		}
@@ -249,40 +251,4 @@ func (h *Handler) UploadAvatar(c *gin.Context) {
 		return
 	}
 	utils.Success(c, 200, "avatar uploaded", gin.H{"avatar": url})
-}
-
-// ListSessions godoc
-// @Summary		List a user's active sessions
-// @Tags			users
-// @Security		SessionCookie
-// @Param			uuid	path	string	true	"User UUID"
-// @Success		200		{object}	utils.Response
-// @Router			/users/{uuid}/sessions [get]
-func (h *Handler) ListSessions(c *gin.Context) {
-	sessionsList, err := h.Service.ListSessions(c.Param("uuid"))
-	if err != nil {
-		utils.Error(c, 404, "user not found")
-		return
-	}
-	utils.Success(c, 200, "ok", sessionsList)
-}
-
-// KickSession godoc
-// @Summary		Revoke a user's session
-// @Tags			users
-// @Security		SessionCookie
-// @Param			uuid			path	string	true	"User UUID"
-// @Param			session_uuid	path	string	true	"Session UUID"
-// @Success		200				{object}	utils.Response
-// @Router			/users/{uuid}/sessions/{session_uuid} [delete]
-func (h *Handler) KickSession(c *gin.Context) {
-	if err := h.Service.KickSession(c.Param("uuid"), c.Param("session_uuid")); err != nil {
-		if errors.Is(err, ErrNotFound) {
-			utils.Error(c, 404, "user not found")
-			return
-		}
-		utils.Error(c, 500, "failed to remove session")
-		return
-	}
-	utils.Success(c, 200, "session removed", nil)
 }

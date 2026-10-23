@@ -89,9 +89,9 @@ See `backend/.env.example` for the full list (app, DB, Redis, session, storage, 
 ## Features
 
 - **Auth**: email/password login, Redis-backed sessions (`HttpOnly`, `SameSite=Strict`, `Secure` in production), CSRF token, per-account password history (no reuse of last 5), account lockout after repeated failed logins (`RATE_LIMIT_LOGIN`, `RATE_LIMIT_LOGIN_LOCKOUT_MINUTES`).
-- **Users**: CRUD, avatar upload, role assignment, status (active/inactive/suspended), per-device session list with remote revoke ("Sessions" action), CSV/Excel export (`GET /users/export/csv`, `/export/excel`, respects the active search/status/role filters). Role or status changes force-invalidate that user's other active sessions immediately (no waiting for token expiry).
+- **Users**: CRUD, avatar upload, role assignment, status (active/inactive/suspended), CSV/Excel export (`GET /users/export/csv`, `/export/excel`, respects the active search/status/role filters). Role or status changes force-invalidate that user's other active sessions immediately (no waiting for token expiry).
 - **Roles & permissions**: per-menu CRUD permission matrix (view/create/edit/delete), superadmin role is protected from edit/delete/permission changes.
-- **Menus & menu sections**: drag-free reordering (up/down), used to build the sidebar tree and the permission matrix.
+- **Menus & menu sections** (one module, one permission, two tabs): drag-free reordering (up/down), used to build the sidebar tree and the permission matrix.
 - **Settings**: app name, logo, favicon, base/primary color (live color picker, applied instantly via a CSS custom property so it doesn't require a rebuild), maintenance mode. Branding fields are also exposed unauthenticated at `GET /settings/public` so the login page renders correctly before a session exists.
 - **Activity logs**: audit trail (actor, action, module, before/after diff, IP, user agent) with filtering; `DELETE /activity-logs/cleanup` prunes rows older than `LOG_CLEANUP_DAYS` (manual trigger — see Known TODOs).
 - **Tiket QC**: pelaporan bug/request oleh QC (Development → Tiket) dengan prioritas, kategori, status QC & development, lampiran screenshot privat (hanya bisa dibuka user yang berizin), timeline komentar, import dari spreadsheet, dan akses API token + CLI `backend/cmd/ticket` agar Claude Code bisa membaca dan melaporkan progres tiket. Detail di `CLAUDE.md` → Tiket QC.
@@ -109,7 +109,7 @@ See `backend/.env.example` for the full list (app, DB, Redis, session, storage, 
 │   │   ├── migrations/       # GORM AutoMigrate runner
 │   │   └── seeders/          # default roles/users/menus/settings
 │   ├── middleware/            # CORS, security headers (incl. CSP), rate limit + login lockout, CSRF, session auth, permission guard, etc.
-│   ├── modules/                # auth, users (incl. export.go), roles, menus, menu_sections, permissions, settings, activity_logs, dev_tickets, files
+│   ├── modules/                # auth, users (incl. export.go), roles, menus (incl. menu sections), permissions, settings, activity_logs, dev_tickets, files
 │   ├── cmd/ticket/             # CLI tiket QC untuk Claude Code
 │   ├── session/                # Redis session store
 │   ├── storage/                # StorageInterface + local disk (uploads/ publik, private/ via /api/v1/files)
@@ -120,7 +120,7 @@ See `backend/.env.example` for the full list (app, DB, Redis, session, storage, 
 │       ├── api/                # axios client + per-resource wrappers
 │       ├── components/         # ui/ (Button, Table, Modal, Menubar, ...) and layout/ (Sidebar, Navbar)
 │       ├── hooks/               # usePermission, usePageActions
-│       ├── pages/                # auth, dashboard, users, menus, menu_sections, roles, settings, activity_logs, dev_tickets
+│       ├── pages/                # auth, dashboard, users, menus (+ menu sections), roles, settings, activity_logs, dev_tickets
 │       ├── router/               # route guards
 │       ├── store/                # Zustand: authStore, settingsStore, sidebarStore, pageActionsStore
 │       └── utils/                # color.js (hex ↔ CSS var helpers for the live base-color picker), url.js, validation.js

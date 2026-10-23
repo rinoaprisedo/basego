@@ -107,24 +107,8 @@ func (r *Repository) UpdateLastLogin(user *User, at time.Time) error {
 	return r.DB.Model(user).Update("last_login_at", &at).Error
 }
 
-func (r *Repository) ListSessions(userID uint64) ([]Session, error) {
-	var sessionsList []Session
-	err := r.DB.Where("user_id = ? AND expired_at > ?", userID, time.Now()).Find(&sessionsList).Error
-	return sessionsList, err
-}
-
-func (r *Repository) DeleteSession(sessionUUID string, userID uint64) error {
-	return r.DB.Where("uuid = ? AND user_id = ?", sessionUUID, userID).Delete(&Session{}).Error
-}
-
 // DeleteAllSessions removes every DB session row for a user, used to mirror a
 // Redis-side force-logout-all (e.g. after a role or status change).
 func (r *Repository) DeleteAllSessions(userID uint64) error {
 	return r.DB.Where("user_id = ?", userID).Delete(&Session{}).Error
-}
-
-func (r *Repository) FindSessionToken(sessionUUID string, userID uint64) (string, error) {
-	var s Session
-	err := r.DB.Where("uuid = ? AND user_id = ?", sessionUUID, userID).First(&s).Error
-	return s.Token, err
 }

@@ -17,6 +17,7 @@ var (
 	ErrNotFound          = errors.New("user not found")
 	ErrEmailInUse        = errors.New("failed to create user (email may already be in use)")
 	ErrSuperadminLocked  = errors.New("superadmin user is protected from this action")
+	ErrSelfDelete        = errors.New("you cannot delete your own account")
 	ErrAvatarFileMissing = errors.New("avatar file is required")
 )
 
@@ -155,17 +156,23 @@ func (s *Service) Update(uuidStr string, in UpdateInput) (before *User, after *U
 	return &old, user, nil
 }
 
-func (s *Service) Delete(uuidStr string, actorID *uint64) (*User, error) {
+// Delete removes a user. A superadmin account can be deleted, but only by
+// another superadmin, and nobody can delete their own account.
+func (s *Service) Delete(uuidStr string, actorID *uint64, actorIsSuperadmin bool) (*User, error) {
 	user, err := s.repo.FindByUUID(uuidStr)
 	if err != nil {
 		return nil, ErrNotFound
 	}
-	if hasSuperadminRole(user) {
+	if actorID != nil && *actorID == user.ID {
+		return nil, ErrSelfDelete
+	}
+	if hasSuperadminRole(user) && !actorIsSuperadmin {
 		return nil, ErrSuperadminLocked
 	}
 	if err := s.repo.Delete(user, actorID); err != nil {
 		return nil, err
 	}
+	s.invalidateSessions(user.ID)
 	return user, nil
 }
 
@@ -204,29 +211,6 @@ func (s *Service) UploadAvatar(uuidStr string, file multipart.File, header *mult
 		return "", err
 	}
 	return s.storage.GetURL(path), nil
-}
-
-func (s *Service) ListSessions(uuidStr string) ([]Session, error) {
-	user, err := s.repo.FindByUUID(uuidStr)
-	if err != nil {
-		return nil, ErrNotFound
-	}
-	return s.repo.ListSessions(user.ID)
-}
-
-func (s *Service) KickSession(uuidStr, sessionUUID string) error {
-	user, err := s.repo.FindByUUID(uuidStr)
-	if err != nil {
-		return ErrNotFound
-	}
-	token, err := s.repo.FindSessionToken(sessionUUID, user.ID)
-	if err != nil {
-		return ErrNotFound
-	}
-	if err := session.Delete(context.Background(), s.redis, token, user.ID); err != nil {
-		return err
-	}
-	return s.repo.DeleteSession(sessionUUID, user.ID)
 }
 
 func hasSuperadminRole(u *User) bool {

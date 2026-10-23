@@ -1,4 +1,4 @@
-package menu_sections
+package menus
 
 import "baseadmin/backend/utils"
 

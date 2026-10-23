@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { Plus, Pencil, Trash2, KeyRound, MoreHorizontal, FileSpreadsheet, FileText, Filter } from 'lucide-react'
+import { Plus, Pencil, Trash2, MoreHorizontal, FileSpreadsheet, FileText, Filter } from 'lucide-react'
 import { format } from 'date-fns'
 import Table from '../../components/ui/Table'
 import Button from '../../components/ui/Button'
@@ -10,9 +10,9 @@ import { Menubar, MenubarAction, MenubarMenu, MenubarItem, MenubarLabel, Menubar
 import Select from '../../components/ui/Select'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import UserFormModal from './UserFormModal'
-import UserSessionsModal from './UserSessionsModal'
 import { getUsers, createUser, updateUser, deleteUser, exportUsersCsv, exportUsersExcel } from '../../api/users'
 import { getRoles } from '../../api/roles'
+import useAuthStore from '../../store/authStore'
 import usePermission from '../../hooks/usePermission'
 import usePageActions from '../../hooks/usePageActions'
 
@@ -20,6 +20,7 @@ const statusVariant = { active: 'success', inactive: 'neutral', suspended: 'dang
 
 function Users() {
   const { canCreate, canEdit, canDelete } = usePermission()
+  const currentUser = useAuthStore((s) => s.user)
   const queryClient = useQueryClient()
   const [page, setPage] = useState(1)
   const [limit, setLimit] = useState(10)
@@ -29,7 +30,6 @@ function Users() {
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState(null)
   const [deleting, setDeleting] = useState(null)
-  const [sessionsUser, setSessionsUser] = useState(null)
   const [status, setStatus] = useState('')
   const [roleFilter, setRoleFilter] = useState('')
   const [draftStatus, setDraftStatus] = useState('')
@@ -105,9 +105,6 @@ function Users() {
       label: '',
       render: (row) => (
         <div className="flex justify-end gap-1">
-          <button onClick={() => setSessionsUser(row)} className="rounded p-1.5 hover:bg-surface-hover" title="Sessions">
-            <KeyRound size={16} />
-          </button>
           {canEdit('users') && (
             <button
               onClick={() => {
@@ -120,7 +117,7 @@ function Users() {
               <Pencil size={16} />
             </button>
           )}
-          {canDelete('users') && (
+          {canDelete('users') && row.uuid !== currentUser?.uuid && (
             <button onClick={() => setDeleting(row)} className="rounded p-1.5 text-danger hover:bg-danger/10" title="Delete">
               <Trash2 size={16} />
             </button>
@@ -263,7 +260,6 @@ function Users() {
         loading={saveMutation.isPending}
       />
 
-      <UserSessionsModal open={!!sessionsUser} onClose={() => setSessionsUser(null)} user={sessionsUser} />
 
       <ConfirmDialog
         open={!!deleting}

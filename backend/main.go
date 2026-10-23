@@ -27,7 +27,6 @@ import (
 	"baseadmin/backend/modules/auth"
 	"baseadmin/backend/modules/dev_tickets"
 	"baseadmin/backend/modules/files"
-	"baseadmin/backend/modules/menu_sections"
 	"baseadmin/backend/modules/menus"
 	"baseadmin/backend/modules/roles"
 	"baseadmin/backend/modules/settings"
@@ -126,9 +125,7 @@ func main() {
 
 	menusHandler := menus.NewHandler(db)
 	menusHandler.RegisterRoutes(api, sessionAuth, guard)
-
-	menuSectionsHandler := menu_sections.NewHandler(db)
-	menuSectionsHandler.RegisterRoutes(api, guard)
+	menusHandler.RegisterSectionRoutes(api, guard)
 
 	settingsHandler := settings.NewHandler(db, rdb, localStorage)
 	settingsHandler.RegisterRoutes(api, guard, uploadLimiter)

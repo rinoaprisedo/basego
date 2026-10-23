@@ -13,6 +13,4 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, guard func(menuPath, actio
 	g.DELETE("/:uuid", guard("users", "delete"), h.Delete)
 	g.PUT("/:uuid/status", guard("users", "edit"), h.UpdateStatus)
 	g.POST("/:uuid/avatar", guard("users", "edit"), uploadLimiter, h.UploadAvatar)
-	g.GET("/:uuid/sessions", guard("users", "view"), h.ListSessions)
-	g.DELETE("/:uuid/sessions/:session_uuid", guard("users", "edit"), h.KickSession)
 }

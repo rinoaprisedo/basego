@@ -7,7 +7,6 @@ import Login from '../pages/auth/Login'
 import Dashboard from '../pages/dashboard/Dashboard'
 import Users from '../pages/users/Users'
 import Menus from '../pages/menus/Menus'
-import MenuSections from '../pages/menu_sections/MenuSections'
 import Roles from '../pages/roles/Roles'
 import RolePermissions from '../pages/roles/RolePermissions'
 import Settings from '../pages/settings/Settings'
@@ -49,14 +48,6 @@ function AppRouter() {
           element={
             <ProtectedRoute menuKey="menus">
               <Menus />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/menu-sections"
-          element={
-            <ProtectedRoute menuKey="menu-sections">
-              <MenuSections />
             </ProtectedRoute>
           }
         />
