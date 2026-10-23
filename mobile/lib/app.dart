@@ -15,7 +15,7 @@ class App extends ConsumerWidget {
     final router = ref.watch(routerProvider);
 
     return MaterialApp.router(
-      title: 'BaseAdmin',
+      title: 'BaseProject',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.build(primary: settings.value?.primaryColor ?? AppColors.defaultPrimary),
       routerConfig: router,

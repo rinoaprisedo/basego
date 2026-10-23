@@ -48,7 +48,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final appName = ref.watch(settingsProvider).value?.appName ?? 'BaseAdmin';
+    final appName = ref.watch(settingsProvider).value?.appName ?? 'BaseProject';
 
     return Scaffold(
       body: SafeArea(

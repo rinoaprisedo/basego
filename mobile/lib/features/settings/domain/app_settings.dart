@@ -19,7 +19,7 @@ class AppSettings {
     return AppSettings(
       appName: (json['app_name'] as String?)?.trim().isNotEmpty == true
           ? json['app_name'] as String
-          : 'BaseAdmin',
+          : 'BaseProject',
       logoUrl: (json['app_logo'] as String?)?.isNotEmpty == true ? json['app_logo'] as String : null,
       faviconUrl: (json['app_favicon'] as String?)?.isNotEmpty == true ? json['app_favicon'] as String : null,
       primaryColor: _parseHexColor(json['primary_color'] as String?) ?? AppColors.defaultPrimary,

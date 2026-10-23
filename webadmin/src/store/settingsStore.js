@@ -6,7 +6,7 @@ import { applyPrimaryColor } from '../utils/color'
 const DEFAULT_PRIMARY = '#35494d'
 
 const useSettingsStore = create((set) => ({
-  appName: 'BaseAdmin',
+  appName: 'BaseProject',
   logo: null,
   favicon: null,
   primaryColor: DEFAULT_PRIMARY,
@@ -23,7 +23,7 @@ const useSettingsStore = create((set) => ({
       const primaryColor = map.primary_color || DEFAULT_PRIMARY
       applyPrimaryColor(primaryColor)
       set({
-        appName: map.app_name || 'BaseAdmin',
+        appName: map.app_name || 'BaseProject',
         logo: fileURL(map.app_logo),
         favicon: fileURL(map.app_favicon),
         primaryColor,

@@ -117,7 +117,7 @@ Generic key-value table (`modules/settings`) — adding a new setting is just a 
 
 Migrations (`database/migrations/migrate.go`) run `AutoMigrate` over: `users.User`, `roles.Role`, `users.Session` (DB mirror, see Auth section), `users.PasswordResetToken`, `users.PasswordHistory`, `menu_sections.MenuSection`, `menus.Menu`, `permissions.Permission`, `settings.Setting`, `activity_logs.ActivityLog` — then replaces GORM's plain unique indexes on `users.email`/`roles.name` with **partial** unique indexes (`WHERE deleted_at IS NULL`) so soft-deleted rows don't block reusing an email/name. Idempotent, safe to re-run.
 
-Seeder (`database/seeders/seed.go`) is idempotent (`FirstOrCreate` throughout): superadmin role → superadmin user (`admin@example.com` / `Admin@12345`, only if absent) → default menus (3 sections: Dashboard, User Management, System) → full CRUD permissions for superadmin on every seeded menu → default settings (`app_name="BaseAdmin"`, empty logo/favicon, `maintenance_mode="false"`).
+Seeder (`database/seeders/seed.go`) is idempotent (`FirstOrCreate` throughout): superadmin role → superadmin user (`admin@example.com` / `Admin@12345`, only if absent) → default menus (3 sections: Dashboard, User Management, System) → full CRUD permissions for superadmin on every seeded menu → default settings (`app_name="BaseProject"`, empty logo/favicon, `maintenance_mode="false"`).
 
 ## Frontend architecture
 

@@ -1,6 +1,14 @@
-# BaseProject
+# BaseProject (basego)
 
-Full-stack admin panel base project — Go (Gin + GORM) backend, React (Vite) frontend, Redis-backed sessions, PostgreSQL by default (MySQL-switchable).
+**Boilerplate untuk mengembangkan sistem aplikasi** dengan tiga lapisan siap pakai:
+
+| Lapisan | Teknologi | Folder |
+|---|---|---|
+| Backend / API | Go (Gin + GORM), Redis sessions, PostgreSQL (bisa MySQL) | `backend/` |
+| Web admin | React (Vite) | `webadmin/` |
+| Aplikasi mobile Android & iOS | Flutter (Riverpod + go_router) | `mobile/` |
+
+Sudah termasuk auth, manajemen user/role/permission, menu dinamis, settings, activity logs, dan modul Tiket QC — tinggal tambah modul sesuai kebutuhan aplikasi Anda.
 
 ## Prerequisites
 
@@ -86,6 +94,7 @@ See `backend/.env.example` for the full list (app, DB, Redis, session, storage, 
 - **Menus & menu sections**: drag-free reordering (up/down), used to build the sidebar tree and the permission matrix.
 - **Settings**: app name, logo, favicon, base/primary color (live color picker, applied instantly via a CSS custom property so it doesn't require a rebuild), maintenance mode. Branding fields are also exposed unauthenticated at `GET /settings/public` so the login page renders correctly before a session exists.
 - **Activity logs**: audit trail (actor, action, module, before/after diff, IP, user agent) with filtering; `DELETE /activity-logs/cleanup` prunes rows older than `LOG_CLEANUP_DAYS` (manual trigger — see Known TODOs).
+- **Tiket QC**: pelaporan bug/request oleh QC (Development → Tiket) dengan prioritas, kategori, status QC & development, lampiran screenshot privat (hanya bisa dibuka user yang berizin), timeline komentar, import dari spreadsheet, dan akses API token + CLI `backend/cmd/ticket` agar Claude Code bisa membaca dan melaporkan progres tiket. Detail di `CLAUDE.md` → Tiket QC.
 - **UI toolbar**: a shadcn-style grouped menubar (`components/ui/Menubar.jsx`) is the standard per-page toolbar — title + actions (Add New, Filter, Others/export) live in one bar in the Navbar, registered per-page via the `usePageActions` hook + `pageActionsStore`. Filter/dropdown panels render through a React portal so they aren't clipped by the toolbar's horizontal scroll container.
 - **Security headers**: CSP (stricter default policy; a slightly relaxed one scoped to `/swagger` for swagger-ui's inline scripts), `X-Frame-Options`, `X-Content-Type-Options`, HSTS, `Referrer-Policy` — see `middleware/security.go` (backend/API) and `webadmin/nginx.conf` (the actual SPA HTML, more critical since it's what a browser executes).
 - **Dependency scanning**: `.github/workflows/security-scan.yml` runs `govulncheck` (Go) and `npm audit --audit-level=high` on every push/PR to `main` plus a weekly schedule; `.github/dependabot.yml` opens weekly update PRs for Go modules, npm, and both Dockerfiles.
@@ -101,9 +110,10 @@ See `backend/.env.example` for the full list (app, DB, Redis, session, storage, 
 │   │   ├── migrations/       # GORM AutoMigrate runner
 │   │   └── seeders/          # default roles/users/menus/settings
 │   ├── middleware/            # CORS, security headers (incl. CSP), rate limit + login lockout, CSRF, session auth, permission guard, etc.
-│   ├── modules/                # auth, users (incl. export.go), roles, menus, menu_sections, permissions, settings, activity_logs
+│   ├── modules/                # auth, users (incl. export.go), roles, menus, menu_sections, permissions, settings, activity_logs, dev_tickets, files
+│   ├── cmd/ticket/             # CLI tiket QC untuk Claude Code
 │   ├── session/                # Redis session store
-│   ├── storage/                # StorageInterface + local disk implementation
+│   ├── storage/                # StorageInterface + local disk (uploads/ publik, private/ via /api/v1/files)
 │   └── utils/                   # shared model helpers
 ├── webadmin/
 │   ├── nginx.conf             # security headers for the built SPA in production
@@ -111,7 +121,7 @@ See `backend/.env.example` for the full list (app, DB, Redis, session, storage, 
 │       ├── api/                # axios client + per-resource wrappers
 │       ├── components/         # ui/ (Button, Table, Modal, Menubar, ...) and layout/ (Sidebar, Navbar)
 │       ├── hooks/               # usePermission, usePageActions
-│       ├── pages/                # auth, dashboard, users, menus, menu_sections, roles, settings, activity_logs
+│       ├── pages/                # auth, dashboard, users, menus, menu_sections, roles, settings, activity_logs, dev_tickets
 │       ├── router/               # route guards
 │       ├── store/                # Zustand: authStore, settingsStore, sidebarStore, pageActionsStore
 │       └── utils/                # color.js (hex ↔ CSS var helpers for the live base-color picker), url.js, validation.js
@@ -149,3 +159,7 @@ Password: Admin@12345
 ```
 
 Change this immediately in any non-local environment.
+
+---
+
+Develop by [rinoaprisedo.com](https://rinoaprisedo.com)

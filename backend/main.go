@@ -1,7 +1,7 @@
-// Package main wires up the BaseAdmin backend: config, database, redis,
+// Package main wires up the BaseProject backend: config, database, redis,
 // middleware stack, module routes, and the migrate/seed CLI subcommands.
 //
-// @title						BaseAdmin API
+// @title						BaseProject API
 // @version					1.2.0
 // @description				Admin Panel Base Project API
 // @host						localhost:8800
@@ -143,7 +143,7 @@ func main() {
 	devTicketsHandler.RegisterRoutes(api, guard, uploadLimiter)
 	devTicketsHandler.RegisterClaudeRoutes(api)
 
-	log.Printf("BaseAdmin backend listening on :%s (env=%s)", cfg.AppPort, cfg.AppEnv)
+	log.Printf("BaseProject backend listening on :%s (env=%s)", cfg.AppPort, cfg.AppEnv)
 	if err := router.Run(":" + cfg.AppPort); err != nil {
 		log.Fatalf("server failed: %v", err)
 	}
