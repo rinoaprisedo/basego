@@ -61,7 +61,7 @@ If `go`, `docker`, or `gh` aren't on `PATH` in a fresh shell, this Mac needed Xc
 
 ## Backend architecture
 
-Each feature is a self-contained module under `backend/modules/<name>/`: `handler.go` (HTTP layer, Gin) → `service.go` (business rules) → `repository.go` (GORM/SQL) → `model.go` → `routes.go`. Modules: `auth`, `users`, `roles`, `permissions`, `menus`, `menu_sections`, `settings`, `activity_logs`.
+Each feature is a self-contained module under `backend/modules/<name>/`: `handler.go` (HTTP layer, Gin) → `service.go` (business rules) → `repository.go` (GORM/SQL) → `model.go` → `routes.go`. Modules: `auth`, `users`, `roles`, `permissions`, `menus`, `menu_sections`, `settings`, `activity_logs`, `dev_tickets`, `files`.
 
 ### Auth & sessions
 
@@ -161,3 +161,17 @@ Backend: **zero test files exist**. If asked to add backend tests, there's no ex
 - Don't add a Dockerfile/env var/config knob without actually wiring it to behavior — this codebase had several dead ones cleaned up already.
 - Service methods that mutate + should be audited return `(before, after, error)` so the caller can log a diff via `LogActivity` — match this shape for new mutating endpoints.
 - Run `go build ./...` / `npm run build` after backend/frontend changes respectively before considering a change complete.
+
+## Tiket QC
+
+QC tickets: `modules/dev_tickets`, admin Development → Tiket (menu path `dev-tickets`; run `go run main.go migrate && go run main.go seed` to get tables + menu). Dev status `todo → in_progress / need_info → done_by_claude → done | wont_fix`; Claude may only set the first three. Screenshots go to the private store (`storage/private`, sibling of `STORAGE_PATH`) and are served only through `GET /api/v1/files/dev_tickets/*` (needs `dev-tickets` view permission, `modules/files`). The Claude API (`/api/v1/dev-api/*`, bearer token created in Tiket → Akses Claude) is skipped by the CSRF and XSS middlewares. CLI (env `BASEGO_TICKET_API`/`BASEGO_TICKET_TOKEN` or `.ticket.env`):
+
+```bash
+cd backend
+go run ./cmd/ticket list [-status todo,in_progress] [-priority High] [-platform Android] [-all]
+go run ./cmd/ticket show 12      # also downloads screenshots — Read them
+go run ./cmd/ticket start 12
+go run ./cmd/ticket done 12 "…"  # "-" = note from stdin
+go run ./cmd/ticket ask 12 "…"   # need_info
+go run ./cmd/ticket comment 12 "…"
+```

@@ -11,10 +11,12 @@ import (
 )
 
 // XSSSanitizer strips HTML tags from all string values in a JSON request
-// body before the handler decodes it.
-func XSSSanitizer() gin.HandlerFunc {
+// body before the handler decodes it. skipPrefixes are bearer-token APIs whose
+// text is only ever rendered escaped (notes legitimately contain code like
+// <Component>).
+func XSSSanitizer(skipPrefixes ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if c.Request.Body == nil || c.ContentType() != "application/json" {
+		if c.Request.Body == nil || c.ContentType() != "application/json" || hasPrefix(c.Request.URL.Path, skipPrefixes) {
 			c.Next()
 			return
 		}

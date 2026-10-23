@@ -8,3 +8,12 @@ export function fileURL(path) {
   if (/^https?:\/\//.test(path)) return path
   return `${apiOrigin}/uploads/${path.replace(/^\/+/, '')}`
 }
+
+// Private files (e.g. QC ticket screenshots) aren't under /uploads: the
+// backend serves them at /api/v1/files/<path> only to staff with access
+// (session cookie, sent automatically since the API is same-site).
+export function privateFileURL(path) {
+  if (!path) return null
+  if (/^https?:\/\//.test(path)) return path
+  return `${apiOrigin}/api/v1/files/${path.replace(/^\/+/, '').replace(/^uploads\//, '')}`
+}

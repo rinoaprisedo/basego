@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"crypto/subtle"
 	"encoding/hex"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -13,9 +14,14 @@ const csrfHeaderName = "X-CSRF-Token"
 
 // CSRF implements the double-submit-cookie pattern: a token is issued as a
 // non-httpOnly cookie and must be echoed back in a request header on any
-// state-changing request.
-func CSRF(secure bool) gin.HandlerFunc {
+// state-changing request. skipPrefixes are bearer-token APIs that never read
+// cookies.
+func CSRF(secure bool, skipPrefixes ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if hasPrefix(c.Request.URL.Path, skipPrefixes) {
+			c.Next()
+			return
+		}
 		token, err := c.Cookie(csrfCookieName)
 		if err != nil || token == "" {
 			token = generateCSRFToken()
@@ -40,4 +46,13 @@ func generateCSRFToken() string {
 	b := make([]byte, 32)
 	_, _ = rand.Read(b)
 	return hex.EncodeToString(b)
+}
+
+func hasPrefix(path string, prefixes []string) bool {
+	for _, p := range prefixes {
+		if strings.HasPrefix(path, p) {
+			return true
+		}
+	}
+	return false
 }

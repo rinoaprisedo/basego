@@ -25,6 +25,8 @@ import (
 	"baseadmin/backend/middleware"
 	"baseadmin/backend/modules/activity_logs"
 	"baseadmin/backend/modules/auth"
+	"baseadmin/backend/modules/dev_tickets"
+	"baseadmin/backend/modules/files"
 	"baseadmin/backend/modules/menu_sections"
 	"baseadmin/backend/modules/menus"
 	"baseadmin/backend/modules/roles"
@@ -63,6 +65,8 @@ func main() {
 	activity_logs.StartWorker(db)
 
 	localStorage := storage.NewLocalStorage(cfg.StoragePath, "/uploads", cfg.StorageMaxSize)
+	// QC screenshots often show private data: served only via /api/v1/files.
+	privateStorage := storage.NewLocalStorage(cfg.PrivateStoragePath, "/api/v1/files", cfg.StorageMaxSize)
 
 	if cfg.AppEnv == "production" {
 		gin.SetMode(gin.ReleaseMode)
@@ -72,8 +76,8 @@ func main() {
 	router.Use(middleware.CORSMiddleware(cfg.FrontendURL))
 	router.Use(middleware.SecurityHeaders())
 	router.Use(middleware.RequestSizeLimit(10 << 20))
-	router.Use(middleware.CSRF(cfg.AppEnv == "production"))
-	router.Use(middleware.XSSSanitizer())
+	router.Use(middleware.CSRF(cfg.AppEnv == "production", dev_tickets.APIPrefix))
+	router.Use(middleware.XSSSanitizer(dev_tickets.APIPrefix))
 	router.Use(middleware.MaintenanceMode(rdb, db))
 	router.Use(middleware.RateLimit(rdb, "api", cfg.RateLimitAPI, time.Minute, func(c *gin.Context) string { return c.ClientIP() }))
 
@@ -131,6 +135,13 @@ func main() {
 
 	activityLogsHandler := activity_logs.NewHandler(db, cfg)
 	activityLogsHandler.RegisterRoutes(api, guard)
+
+	filesHandler := files.NewHandler(privateStorage)
+	filesHandler.RegisterRoutes(api, guard)
+
+	devTicketsHandler := dev_tickets.NewHandler(db, privateStorage)
+	devTicketsHandler.RegisterRoutes(api, guard, uploadLimiter)
+	devTicketsHandler.RegisterClaudeRoutes(api)
 
 	log.Printf("BaseAdmin backend listening on :%s (env=%s)", cfg.AppPort, cfg.AppEnv)
 	if err := router.Run(":" + cfg.AppPort); err != nil {

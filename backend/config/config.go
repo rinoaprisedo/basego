@@ -3,6 +3,7 @@ package config
 import (
 	"log"
 	"os"
+	"path/filepath"
 	"strconv"
 
 	"github.com/joho/godotenv"
@@ -28,8 +29,12 @@ type Config struct {
 	SessionMaxAge        int
 	SessionMaxConcurrent int
 
-	StoragePath    string
-	StorageMaxSize int64
+	StoragePath string
+	// PrivateStoragePath is derived (sibling of StoragePath, never served by
+	// /uploads): files here are only reachable through the permission-checked
+	// /api/v1/files endpoint.
+	PrivateStoragePath string
+	StorageMaxSize     int64
 
 	LogCleanupDays           int
 	RateLimitLogin           int
@@ -72,6 +77,8 @@ func Load() *Config {
 		RateLimitLoginLockoutMin: getEnvInt("RATE_LIMIT_LOGIN_LOCKOUT_MINUTES", 15),
 		RateLimitAPI:             getEnvInt("RATE_LIMIT_API", 100),
 	}
+
+	Cfg.PrivateStoragePath = filepath.Join(filepath.Dir(filepath.Clean(Cfg.StoragePath)), "private")
 
 	return Cfg
 }

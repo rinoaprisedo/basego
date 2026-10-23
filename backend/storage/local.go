@@ -77,3 +77,21 @@ func (s *LocalStorage) Delete(path string) error {
 func (s *LocalStorage) GetURL(path string) string {
 	return strings.TrimRight(s.BaseURL, "/") + "/" + strings.TrimLeft(path, "/")
 }
+
+func (s *LocalStorage) Open(rel string) (*Object, error) {
+	// Rooted clean so "../" can't climb out of BasePath.
+	full := filepath.Join(s.BasePath, filepath.FromSlash(filepath.ToSlash(filepath.Clean("/"+rel))))
+	f, err := os.Open(full)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	info, err := f.Stat()
+	if err != nil || info.IsDir() {
+		f.Close()
+		return nil, ErrNotFound
+	}
+	return &Object{Body: f, Size: info.Size(), ModTime: info.ModTime()}, nil
+}

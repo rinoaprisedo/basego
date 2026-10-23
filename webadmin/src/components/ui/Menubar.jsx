@@ -67,6 +67,27 @@ export function MenubarAction({ label, icon: Icon, onClick }) {
   )
 }
 
+// On/off switch styled as a trigger, for page-level feature toggles.
+export function MenubarToggle({ label, icon: Icon, checked, onChange, disabled, title }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      disabled={disabled}
+      title={title}
+      onClick={() => onChange(!checked)}
+      className={cn(triggerCls, 'text-text-primary disabled:cursor-not-allowed disabled:opacity-50')}
+    >
+      {Icon && <Icon size={15} className={checked ? 'text-primary' : undefined} />}
+      {label}
+      <span className={cn('relative h-4 w-7 rounded-full transition-colors', checked ? 'bg-primary' : 'bg-surface-border')}>
+        <span className={cn('absolute top-0.5 h-3 w-3 rounded-full bg-white shadow transition-all', checked ? 'left-3.5' : 'left-0.5')} />
+      </span>
+    </button>
+  )
+}
+
 // Trigger that opens a dropdown panel, rendered via a portal to <body> and
 // positioned from the trigger's on-screen rect (recomputed on open/resize).
 // A portal is required because the Menubar row uses `overflow-x-auto` for

@@ -4,6 +4,7 @@ import (
 	"log"
 
 	"baseadmin/backend/modules/activity_logs"
+	"baseadmin/backend/modules/dev_tickets"
 	"baseadmin/backend/modules/menu_sections"
 	"baseadmin/backend/modules/menus"
 	"baseadmin/backend/modules/permissions"
@@ -27,6 +28,9 @@ func Run(db *gorm.DB) {
 		&permissions.Permission{},
 		&settings.Setting{},
 		&activity_logs.ActivityLog{},
+		&dev_tickets.Ticket{},
+		&dev_tickets.Comment{},
+		&dev_tickets.APIToken{},
 	)
 	if err != nil {
 		log.Fatalf("migration failed: %v", err)

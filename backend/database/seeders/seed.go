@@ -113,6 +113,12 @@ func seedMenus(db *gorm.DB) []uint64 {
 				{Name: "Activity Logs", Icon: "History", Path: "activity-logs"},
 			},
 		},
+		{
+			Section: menu_sections.MenuSection{Name: "Development", Icon: "Code", Order: 4},
+			Menus: []menuDef{
+				{Name: "Tiket", Icon: "Ticket", Path: "dev-tickets"},
+			},
+		},
 	}
 
 	var menuIDs []uint64

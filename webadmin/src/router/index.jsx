@@ -12,6 +12,7 @@ import Roles from '../pages/roles/Roles'
 import RolePermissions from '../pages/roles/RolePermissions'
 import Settings from '../pages/settings/Settings'
 import ActivityLogs from '../pages/activity_logs/ActivityLogs'
+import DevTickets from '../pages/dev_tickets/DevTickets'
 import Forbidden from '../pages/Forbidden'
 import NotFound from '../pages/NotFound'
 import Maintenance from '../pages/Maintenance'
@@ -88,6 +89,14 @@ function AppRouter() {
           element={
             <ProtectedRoute menuKey="activity-logs">
               <ActivityLogs />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dev-tickets"
+          element={
+            <ProtectedRoute menuKey="dev-tickets">
+              <DevTickets />
             </ProtectedRoute>
           }
         />
