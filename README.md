@@ -97,7 +97,6 @@ See `backend/.env.example` for the full list (app, DB, Redis, session, storage, 
 - **Tiket QC**: pelaporan bug/request oleh QC (Development → Tiket) dengan prioritas, kategori, status QC & development, lampiran screenshot privat (hanya bisa dibuka user yang berizin), timeline komentar, import dari spreadsheet, dan akses API token + CLI `backend/cmd/ticket` agar Claude Code bisa membaca dan melaporkan progres tiket. Detail di `CLAUDE.md` → Tiket QC.
 - **UI toolbar**: a shadcn-style grouped menubar (`components/ui/Menubar.jsx`) is the standard per-page toolbar — title + actions (Add New, Filter, Others/export) live in one bar in the Navbar, registered per-page via the `usePageActions` hook + `pageActionsStore`. Filter/dropdown panels render through a React portal so they aren't clipped by the toolbar's horizontal scroll container.
 - **Security headers**: CSP (stricter default policy; a slightly relaxed one scoped to `/swagger` for swagger-ui's inline scripts), `X-Frame-Options`, `X-Content-Type-Options`, HSTS, `Referrer-Policy` — see `middleware/security.go` (backend/API) and `webadmin/nginx.conf` (the actual SPA HTML, more critical since it's what a browser executes).
-- **Dependency scanning**: `.github/workflows/security-scan.yml` runs `govulncheck` (Go) and `npm audit --audit-level=high` on every push/PR to `main` plus a weekly schedule; `.github/dependabot.yml` opens weekly update PRs for Go modules, npm, and both Dockerfiles.
 
 ## Folder structure
 

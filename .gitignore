@@ -10,3 +10,4 @@ backend/baseadmin
 backend/docs/
 *.log
 .DS_Store
+.github/
