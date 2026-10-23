@@ -1,4 +1,4 @@
-# BaseAdmin
+# BaseProject
 
 Full-stack admin panel base project — Go (Gin + GORM) backend, React (Vite) frontend, Redis-backed sessions, PostgreSQL by default (MySQL-switchable).
 
