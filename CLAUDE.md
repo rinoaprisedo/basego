@@ -4,13 +4,13 @@ Guidance for Claude Code working in this repo. Read this first — it should cov
 
 ## What this is
 
-Full-stack admin panel boilerplate: **Go (Gin + GORM)** backend, **React (Vite)** frontend, **Redis**-backed sessions, **PostgreSQL** by default (MySQL-switchable via `DB_DRIVER`).
+Boilerplate ("BaseProject") for building application systems: web admin + mobile app on a shared API. **Go (Gin + GORM)** backend, **React (Vite)** frontend, **Redis**-backed sessions, **PostgreSQL** by default (MySQL-switchable via `DB_DRIVER`).
 
 - Backend: `backend/` — module-per-feature under `modules/`, runs on `:8800`
 - Frontend: `webadmin/` — Vite dev server on `:8801` (see `vite.config.js`)
 - Mobile app: `mobile/` — Flutter boilerplate (Riverpod + go_router), web dev server on `:8802`
 - Local infra: `docker-compose.yml` (postgres, redis, backend, webadmin) — see **Local dev setup** below for how this environment actually runs it (DB/Redis in Docker, app processes native)
-- Ports are tracked in `port-mapping.md` (source of truth) — BE 8800, WEBADMIN 8801, MOBILE 8802, POSTGRES 5401, REDIS 6301
+- Ports (`port-mapping.md` no longer exists; `docker-compose.yml` and `.env.example` files are the source of truth) — BE 8800, WEBADMIN 8801, MOBILE 8802, POSTGRES 5401, REDIS 6301
 
 ## Commands
 
@@ -34,7 +34,7 @@ There is no lint script configured on the frontend, and **no Go tests exist anyw
 
 ## Local dev setup (this environment)
 
-This machine runs a **hybrid** setup, not the full `docker-compose.yml` stack: only Postgres and Redis run in Docker (project name `basego`, so containers are `basego-postgres-1`/`basego-redis-1`); `backend` and `webadmin` run natively on the host so edits hot-reload without a rebuild. Ports match `port-mapping.md`.
+This machine runs a **hybrid** setup, not the full `docker-compose.yml` stack: only Postgres and Redis run in Docker (project name `basego`, so containers are `basego-postgres-1`/`basego-redis-1`); `backend` and `webadmin` run natively on the host so edits hot-reload without a rebuild. Ports match the defaults in `.env.example`/`docker-compose.yml`.
 
 ```bash
 # 1. Postgres + Redis only, under the `basego` compose project
@@ -103,21 +103,22 @@ Generic key-value table (`modules/settings`) — adding a new setting is just a 
 - `permission.go` — `RequirePermission` (the `guard()` used everywhere).
 - `rate_limit.go` — generic `RateLimit` (fixed-window Redis counter) + `LoginLockout`/`RegisterLoginFailure`/`ClearLoginFailures`.
 - `security.go` — `CORSMiddleware` (comma-separated origin whitelist via `FRONTEND_URL`, e.g. `http://localhost:8801,http://localhost:8802` for the React admin + Flutter web dev server), `SecurityHeaders` (CSP + X-Frame-Options + X-Content-Type-Options + HSTS + Referrer-Policy; CSP has a relaxed variant scoped to `/swagger` for swagger-ui's inline scripts), `RequestSizeLimit`.
-- `csrf.go` — double-submit-cookie: issues a non-httpOnly `csrf_token` cookie, requires header `X-CSRF-Token` to match on any non-safe method (403 otherwise).
+- `csrf.go` — double-submit-cookie: issues a non-httpOnly `csrf_token` cookie, requires header `X-CSRF-Token` to match on any non-safe method (403 otherwise). `CSRF(secure, skipPrefixes...)` skips bearer-token APIs (`dev_tickets.APIPrefix`).
+- `xss.go` — `XSSSanitizer(skipPrefixes...)` strips HTML tags from JSON request bodies; same skip list as CSRF (Claude's notes legitimately contain code like `<Component>`).
 - `maintenance.go` — `MaintenanceMode`, see Settings above.
 - `webadmin/nginx.conf` sets the *real* production CSP for the SPA HTML (more critical than the backend's, since that's what a browser actually executes for the app itself).
 
 ### Config & env
 
-`config/config.go` reads `.env` (via `godotenv`) into a `Config` struct. **Every field is read somewhere in the codebase** — this was audited and dead fields (`APP_SECRET`, `APP_NAME`, `SESSION_SECRET`, `STORAGE_DRIVER`, `MAIL_*`) were removed. Don't add a new env var without wiring it to actual behavior, and don't leave unused ones around. App name/branding now lives in the DB (`settings` table), not env.
+`config/config.go` reads `.env` (via `godotenv`) into a `Config` struct. `PrivateStoragePath` is derived, not an env var: sibling `private/` of `STORAGE_PATH` (default `./storage/private`, gitignored), never served by `/uploads`. **Every field is read somewhere in the codebase** — this was audited and dead fields (`APP_SECRET`, `APP_NAME`, `SESSION_SECRET`, `STORAGE_DRIVER`, `MAIL_*`) were removed. Don't add a new env var without wiring it to actual behavior, and don't leave unused ones around. App name/branding now lives in the DB (`settings` table), not env.
 
 **Known gap**: Redis has no password in `docker-compose.yml` (no `--requirepass`) and `REDIS_PASS` is empty in `.env.example`. Fine for isolated local dev; flag it before any shared/production deployment (Redis holds session tokens — unauthenticated access = session hijack).
 
 ### Database
 
-Migrations (`database/migrations/migrate.go`) run `AutoMigrate` over: `users.User`, `roles.Role`, `users.Session` (DB mirror, see Auth section), `users.PasswordResetToken`, `users.PasswordHistory`, `menu_sections.MenuSection`, `menus.Menu`, `permissions.Permission`, `settings.Setting`, `activity_logs.ActivityLog` — then replaces GORM's plain unique indexes on `users.email`/`roles.name` with **partial** unique indexes (`WHERE deleted_at IS NULL`) so soft-deleted rows don't block reusing an email/name. Idempotent, safe to re-run.
+Migrations (`database/migrations/migrate.go`) run `AutoMigrate` over: `users.User`, `roles.Role`, `users.Session` (DB mirror, see Auth section), `users.PasswordResetToken`, `users.PasswordHistory`, `menu_sections.MenuSection`, `menus.Menu`, `permissions.Permission`, `settings.Setting`, `activity_logs.ActivityLog`, `dev_tickets.Ticket`, `dev_tickets.Comment`, `dev_tickets.APIToken` — then replaces GORM's plain unique indexes on `users.email`/`roles.name` with **partial** unique indexes (`WHERE deleted_at IS NULL`) so soft-deleted rows don't block reusing an email/name. Idempotent, safe to re-run.
 
-Seeder (`database/seeders/seed.go`) is idempotent (`FirstOrCreate` throughout): superadmin role → superadmin user (`admin@example.com` / `Admin@12345`, only if absent) → default menus (3 sections: Dashboard, User Management, System) → full CRUD permissions for superadmin on every seeded menu → default settings (`app_name="BaseProject"`, empty logo/favicon, `maintenance_mode="false"`).
+Seeder (`database/seeders/seed.go`) is idempotent (`FirstOrCreate` throughout): superadmin role → superadmin user (`admin@example.com` / `Admin@12345`, only if absent) → default menus (4 sections: Dashboard, User Management, System, Development → Tiket) → full CRUD permissions for superadmin on every seeded menu → default settings (`app_name="BaseProject"`, empty logo/favicon, `maintenance_mode="false"`).
 
 ## Frontend architecture
 
@@ -127,6 +128,7 @@ Seeder (`database/seeders/seed.go`) is idempotent (`FirstOrCreate` throughout): 
 - **Modals** (`components/ui/Modal.jsx`) close on backdrop click (`stopPropagation` on the inner box) — shared by every modal (`ConfirmDialog`, all `*FormModal`s), so fix backdrop/overlay behavior once, centrally.
 - All list pages use `components/ui/Table.jsx` for search/sort/pagination — the search box lives inside the table's own header row, not the page toolbar.
 - Permissions: `usePermission()` (`hooks/usePermission.js`) exposes `{canView, canCreate, canEdit, canDelete}`, reading `permissions`/`user` from `authStore` (populated from `GET /auth/me`). Superadmin short-circuits to `true` for everything; otherwise matches on menu `path` with leading `/` stripped. `ProtectedRoute` (`router/ProtectedRoute.jsx`) is a client-side gate only (redirects to `/login` or `/403`) — actual authorization is always enforced server-side by `RequirePermission`, never trust the frontend check alone when adding a new protected action.
+- Shared UI beyond the basics (added with the Tiket module, copied from the `toi` project): `Textarea`, `FilterPanel` + `hooks/useFilters.js` (Menubar Filter dropdown body), `ImageLightbox`/`Thumb` (image preview; `privateFileURL` in `utils/url.js` for `/api/v1/files/*`), `hooks/useDebouncedValue.js`, `MenubarToggle`, and `ConfirmDialog` label/variant props. `pages/dev_tickets/` is a good reference for a full list + filters + modals page.
 - Routing (`router/index.jsx`): flat route tree, no code-splitting/lazy-loading yet (frontend bundle is a single ~1.2MB chunk — worth `React.lazy` as the app grows). Each management page is individually wrapped in its own `<ProtectedRoute menuKey="...">` rather than gating at a layout/group level.
 - State: Zustand stores in `store/` — `authStore` (current user + permissions), `settingsStore` (branding, via the public endpoint), `sidebarStore` (starts collapsed on mobile via a `window.innerWidth` check at store-init time, not a mount effect), `pageActionsStore` (toolbar registration, see above).
 - Toasts: `react-hot-toast`, configured in `main.jsx` — `bottom-right`, solid colored blocks per type (not thin border accents), loading toast uses the dynamic primary color CSS var.
@@ -145,13 +147,13 @@ Flutter boilerplate (managed via `fvm`, channel `stable`) consuming the same bac
 
 Frontend: Vitest, 3 files total (`utils/validation.test.js`, `utils/cn.test.js`, `components/ui/Button.test.jsx`) — minimal coverage, no integration/e2e. Run with `npm test` in `webadmin/`.
 
-Backend: **zero test files exist**. If asked to add backend tests, there's no existing convention to follow — establish one (likely table-driven `_test.go` next to the file under test, matching Go norms) rather than assuming a pattern.
+Backend: one test file, `modules/dev_tickets/platform_test.go` (table-driven, no DB). Follow that shape for new tests: table-driven `_test.go` next to the code, no database.
 
 ## Docker
 
 `docker-compose.yml`: `postgres` (18-alpine, host port 5401), `redis` (7-alpine, host port 6301, **no password**), `backend` (build `./backend`, port 8800, `.env` + compose-level overrides for `DB_HOST`/`REDIS_HOST`/`FRONTEND_URL` since those need Docker network hostnames), `webadmin` (build `./webadmin`, port 8801, nginx-served build).
 
-`backend/Dockerfile`: multi-stage — `golang:1.26-alpine` builder runs `swag init` (regenerates `docs/`, gitignored) before compiling a static (`CGO_ENABLED=0`) binary, copied into a slim `alpine:3.20` runtime with `ca-certificates`. Also copies the `storage/` directory into the image, but **uploads aren't a mounted volume** in compose — avatar/logo/favicon uploads are lost on container rebuild unless you add one.
+`backend/Dockerfile`: multi-stage — `golang:1.26-alpine` builder runs `swag init` (regenerates `docs/`, gitignored) before compiling a static (`CGO_ENABLED=0`) binary, copied into a slim `alpine:3.20` runtime with `ca-certificates`. Also copies the `storage/` directory into the image, but **uploads aren't a mounted volume** in compose — avatar/logo/favicon uploads and private files (`storage/private`, ticket screenshots) are lost on container rebuild unless you add one.
 
 `webadmin/Dockerfile`: `node:20-alpine` build stage (`npm install && npm run build`) → served by `nginx:1.27-alpine`, custom `nginx.conf` (SPA fallback + the production CSP/security headers mentioned above).
 
