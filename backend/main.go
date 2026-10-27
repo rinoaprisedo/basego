@@ -170,6 +170,8 @@ func main() {
 		if err := srv.Shutdown(ctx); err != nil {
 			log.Printf("graceful shutdown incomplete: %v", err)
 		}
+		// Persist audit entries still queued in memory.
+		activity_logs.Stop(10 * time.Second)
 	}
 }
 

@@ -1,6 +1,8 @@
 package activity_logs
 
 import (
+	"fmt"
+
 	"baseadmin/backend/utils"
 
 	"gorm.io/gorm"
@@ -51,13 +53,19 @@ func (r *Repository) List(p utils.Pagination, f ListFilter) ([]ActivityLog, int6
 		q = q.Where("created_at <= ?", f.DateTo)
 	}
 
-	var total int64
-	if err := q.Count(&total).Error; err != nil {
+	// count(*) over a big log table costs ~20ms per page view; the total is
+	// only used for the pager, so a few seconds of staleness is fine.
+	total, err := cachedCount(fmt.Sprintf("%+v", f), func() (int64, error) {
+		var n int64
+		err := q.Session(&gorm.Session{}).Count(&n).Error
+		return n, err
+	})
+	if err != nil {
 		return nil, 0, err
 	}
 
 	var list []ActivityLog
-	err := q.Order(p.SortBy + " " + p.SortDir).Offset(p.Offset).Limit(p.Limit).Find(&list).Error
+	err = q.Order(p.SortBy + " " + p.SortDir).Offset(p.Offset).Limit(p.Limit).Find(&list).Error
 	return list, total, err
 }
 
