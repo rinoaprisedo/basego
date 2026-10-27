@@ -1,0 +1,9 @@
+.env
+.env.*
+!.env.example
+baseadmin
+docs
+storage/uploads/*
+!storage/uploads/.gitkeep
+storage/private
+*.log

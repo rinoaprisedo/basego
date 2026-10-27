@@ -4,38 +4,63 @@ services:
     environment:
       POSTGRES_DB: baseadmin
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
-    ports: ["5401:5432"]
+      # Dev default only — set POSTGRES_PASSWORD (shell or a root .env file)
+      # for anything reachable beyond your machine. The backend below reads
+      # the same variable, so the two can't drift apart.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+    # Bound to loopback: the database is for local tooling only, never the LAN.
+    ports: ["127.0.0.1:5401:5432"]
     volumes: [pgdata:/var/lib/postgresql]
+    security_opt: ["no-new-privileges:true"]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d baseadmin"]
       interval: 10s
+      timeout: 5s
+      retries: 5
 
   redis:
-    image: redis:7-alpine
-    ports: ["6301:6379"]
+    image: redis:8-alpine
+    ports: ["127.0.0.1:6301:6379"]
     command: redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru
+    security_opt: ["no-new-privileges:true"]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   backend:
     build: ./backend
     ports: ["8800:8800"]
+    env_file:
+      - path: ./backend/.env
+        required: false
+    # `environment` wins over env_file, so these always match the compose
+    # topology even if backend/.env was copied from .env.example.
     environment:
+      APP_PORT: 8800
       DB_HOST: postgres
       DB_PORT: 5432
+      DB_PASS: ${POSTGRES_PASSWORD:-password}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       FRONTEND_URL: http://localhost:8801,http://localhost:8802
+    volumes:
+      # Uploads (public + private) survive container rebuilds.
+      - appdata:/app/storage
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
-    env_file: ./backend/.env
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
 
   webadmin:
     build: ./webadmin
-    ports: ["8801:80"]
+    ports: ["8801:8080"]
     depends_on: [backend]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
 
 volumes:
   pgdata:
+  appdata:
