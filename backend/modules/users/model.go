@@ -20,7 +20,7 @@ const (
 
 type User struct {
 	utils.AuditModel
-	Name        string     `gorm:"type:varchar(255);not null" json:"name"`
+	Name string `gorm:"type:varchar(255);not null" json:"name"`
 	// Uniqueness on email is enforced by a partial index (WHERE deleted_at IS
 	// NULL) created in migrations, not by this tag — a plain uniqueIndex would
 	// block re-using an email after the row holding it is soft-deleted.

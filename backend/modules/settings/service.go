@@ -5,6 +5,7 @@ import (
 	"errors"
 	"mime/multipart"
 
+	"baseadmin/backend/middleware"
 	"baseadmin/backend/storage"
 
 	"github.com/redis/go-redis/v9"
@@ -71,6 +72,7 @@ func (s *Service) BulkUpdate(payload map[string]string) error {
 	}
 	if _, ok := payload["maintenance_mode"]; ok {
 		s.redis.Del(context.Background(), "settings:maintenance_mode")
+		middleware.ResetMaintenanceCache()
 	}
 	return nil
 }

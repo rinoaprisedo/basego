@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -16,8 +15,8 @@ class LoginScreen extends ConsumerStatefulWidget {
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   // Pre-filled in debug builds only, to speed up manual testing.
-  final _emailController = TextEditingController(text: kDebugMode ? 'rinoaprisedo@gmail.com' : '');
-  final _passwordController = TextEditingController(text: kDebugMode ? 'password!!' : '');
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
   bool _obscure = true;
   bool _submitting = false;
   String? _error;

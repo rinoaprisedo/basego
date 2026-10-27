@@ -2,6 +2,8 @@ package menus
 
 import (
 	"errors"
+
+	"baseadmin/backend/middleware"
 )
 
 var (
@@ -128,6 +130,8 @@ func (s *Service) Update(uuidStr string, in MenuInput) (before *Menu, after *Men
 	if err := s.repo.Save(menu); err != nil {
 		return nil, nil, err
 	}
+	// Permission checks join on menus.path, which is cached per user.
+	middleware.FlushAuthCache()
 	return &old, menu, nil
 }
 
@@ -139,6 +143,7 @@ func (s *Service) Delete(uuidStr string, actorID *uint64) (*Menu, error) {
 	if err := s.repo.Delete(menu, actorID); err != nil {
 		return nil, err
 	}
+	middleware.FlushAuthCache()
 	return menu, nil
 }
 

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"baseadmin/backend/modules/users"
+	"baseadmin/backend/session"
 
 	"gorm.io/gorm"
 )
@@ -45,7 +46,7 @@ func (r *Repository) CreateSession(session *users.Session) error {
 }
 
 func (r *Repository) DeleteSessionByToken(token string) {
-	r.DB.Where("token = ?", token).Delete(&users.Session{})
+	r.DB.Where("token = ?", session.Hash(token)).Delete(&users.Session{})
 }
 
 func (r *Repository) CreatePasswordResetToken(token *users.PasswordResetToken) error {
@@ -60,8 +61,17 @@ func (r *Repository) FindValidResetToken(token string) (*users.PasswordResetToke
 	return &reset, nil
 }
 
+// MarkResetTokenUsed burns the used token and every other outstanding token
+// for the same email, so an older emailed link can't be replayed afterwards.
 func (r *Repository) MarkResetTokenUsed(reset *users.PasswordResetToken, at time.Time) {
-	r.DB.Model(reset).Update("used_at", &at)
+	r.DB.Model(&users.PasswordResetToken{}).
+		Where("email = ? AND used_at IS NULL", reset.Email).
+		Update("used_at", &at)
+}
+
+// DeleteSessionsByUser drops the DB session mirror rows for a user.
+func (r *Repository) DeleteSessionsByUser(userID uint64) {
+	r.DB.Where("user_id = ?", userID).Delete(&users.Session{})
 }
 
 func (r *Repository) UpdatePassword(user *users.User, hashed string) {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"sync"
 	"time"
 
 	"baseadmin/backend/config"
@@ -22,6 +23,7 @@ var (
 	ErrResetTokenExpired  = errors.New("token has expired")
 	ErrWrongPassword      = errors.New("current password is incorrect")
 	ErrPasswordReused     = errors.New("cannot reuse any of your last 5 passwords")
+	ErrServerBusy         = errors.New("server is busy, please retry shortly")
 )
 
 type PermissionDTO struct {
@@ -38,10 +40,32 @@ type Service struct {
 	repo  *Repository
 	redis *redis.Client
 	cfg   *config.Config
+	// hashSlots bounds concurrent bcrypt work (see config.BcryptMaxConcurrent).
+	hashSlots chan struct{}
 }
 
 func NewService(repo *Repository, rdb *redis.Client, cfg *config.Config) *Service {
-	return &Service{repo: repo, redis: rdb, cfg: cfg}
+	n := cfg.BcryptMaxConcurrent
+	if n < 1 {
+		n = 1
+	}
+	return &Service{repo: repo, redis: rdb, cfg: cfg, hashSlots: make(chan struct{}, n)}
+}
+
+// hashWait is how long a request queues for a bcrypt slot before being shed
+// with 503 — better a fast, retryable error than an ever-growing queue.
+var hashWait = 3 * time.Second
+
+// acquireHashSlot reserves one bcrypt slot; call the returned func when done.
+func (s *Service) acquireHashSlot() (func(), error) {
+	t := time.NewTimer(hashWait)
+	defer t.Stop()
+	select {
+	case s.hashSlots <- struct{}{}:
+		return func() { <-s.hashSlots }, nil
+	case <-t.C:
+		return nil, ErrServerBusy
+	}
 }
 
 type LoginResult struct {
@@ -50,11 +74,21 @@ type LoginResult struct {
 }
 
 func (s *Service) Login(email, password, ip, userAgent string) (*LoginResult, error) {
+	release, err := s.acquireHashSlot()
+	if err != nil {
+		return nil, err
+	}
 	user, err := s.repo.FindUserByEmail(email)
 	if err != nil {
+		// Burn the same bcrypt time as a real check so response latency
+		// doesn't reveal which emails are registered.
+		CheckPassword(dummyPasswordHash(), password)
+		release()
 		return nil, ErrInvalidCredentials
 	}
-	if !CheckPassword(user.Password, password) {
+	passwordOK := CheckPassword(user.Password, password)
+	release()
+	if !passwordOK {
 		return nil, ErrInvalidCredentials
 	}
 	if user.Status != users.StatusActive {
@@ -81,7 +115,7 @@ func (s *Service) Login(email, password, ip, userAgent string) (*LoginResult, er
 	// and revoke active sessions; Redis remains the source of truth for auth.
 	if err := s.repo.CreateSession(&users.Session{
 		UserID:    user.ID,
-		Token:     token,
+		Token:     session.Hash(token),
 		IPAddress: ip,
 		UserAgent: userAgent,
 		ExpiredAt: time.Now().Add(ttl),
@@ -134,21 +168,30 @@ func (s *Service) ForgotPassword(email string) {
 	token, _ := session.GenerateToken()
 	reset := users.PasswordResetToken{
 		Email:     email,
-		Token:     token,
+		Token:     session.Hash(token),
 		ExpiredAt: time.Now().Add(1 * time.Hour),
 	}
 	_ = s.repo.CreatePasswordResetToken(&reset)
 
-	// SMTP is not configured for the base project; log instead of sending.
-	logResetStub(email, token)
+	// SMTP is not configured for the base project. Dev convenience only: a
+	// token in production logs would let anyone with log access take over any
+	// account, so nothing is emitted there until real delivery is wired up.
+	if s.cfg.AppEnv != "production" {
+		logResetStub(email, token)
+	}
 }
 
 func (s *Service) ResetPassword(token, newPassword string) error {
 	if err := ValidatePasswordPolicy(newPassword); err != nil {
 		return err
 	}
+	release, err := s.acquireHashSlot()
+	if err != nil {
+		return err
+	}
+	defer release()
 
-	reset, err := s.repo.FindValidResetToken(token)
+	reset, err := s.repo.FindValidResetToken(session.Hash(token))
 	if err != nil {
 		return ErrInvalidResetToken
 	}
@@ -170,6 +213,7 @@ func (s *Service) ResetPassword(token, newPassword string) error {
 	s.repo.MarkResetTokenUsed(reset, time.Now())
 
 	_ = session.DeleteAllForUser(context.Background(), s.redis, user.ID)
+	s.repo.DeleteSessionsByUser(user.ID)
 	return nil
 }
 
@@ -177,6 +221,13 @@ func (s *Service) ChangePassword(userID uint64, currentPassword, newPassword str
 	if err := ValidatePasswordPolicy(newPassword); err != nil {
 		return err
 	}
+	// Up to 7 bcrypt operations below (current + 5 history + new hash): hold
+	// one slot for the whole request.
+	release, err := s.acquireHashSlot()
+	if err != nil {
+		return err
+	}
+	defer release()
 
 	user, err := s.repo.FindUserByID(userID)
 	if err != nil {
@@ -206,4 +257,19 @@ func (s *Service) ChangePassword(userID uint64, currentPassword, newPassword str
 
 func logResetStub(email, token string) {
 	println("password reset requested for", email, "token:", token)
+}
+
+var (
+	dummyHashOnce sync.Once
+	dummyHash     string
+)
+
+// dummyPasswordHash is a bcrypt hash (same cost as real ones) of a random
+// value, built once on first use.
+func dummyPasswordHash() string {
+	dummyHashOnce.Do(func() {
+		token, _ := session.GenerateToken()
+		dummyHash, _ = HashPassword(token)
+	})
+	return dummyHash
 }

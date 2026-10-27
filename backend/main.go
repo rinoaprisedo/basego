@@ -14,8 +14,13 @@
 package main
 
 import (
+	"context"
 	"log"
+	"net/http"
 	"os"
+	"os/signal"
+	"strings"
+	"syscall"
 	"time"
 
 	"baseadmin/backend/config"
@@ -71,6 +76,9 @@ func main() {
 		gin.SetMode(gin.ReleaseMode)
 	}
 	router := gin.New()
+	if err := router.SetTrustedProxies(splitList(cfg.TrustedProxies)); err != nil {
+		log.Fatalf("invalid TRUSTED_PROXIES: %v", err)
+	}
 	router.Use(gin.Recovery())
 	router.Use(middleware.CORSMiddleware(cfg.FrontendURL))
 	router.Use(middleware.SecurityHeaders())
@@ -82,16 +90,9 @@ func main() {
 
 	router.Static("/uploads", cfg.StoragePath)
 
-	sessionAuth := middleware.SessionAuth(rdb, db)
-	guard := func(menuPath, action string) gin.HandlerFunc {
-		return func(c *gin.Context) {
-			sessionAuth(c)
-			if c.IsAborted() {
-				return
-			}
-			middleware.RequirePermission(db, menuPath, action)(c)
-		}
-	}
+	authz := middleware.NewAuthCache(db, time.Duration(cfg.AuthzCacheTTL)*time.Second)
+	sessionAuth := middleware.SessionAuth(rdb, authz)
+	guard := middleware.NewGuard(rdb, authz)
 	requireSuperadmin := func(c *gin.Context) {
 		if !utils.IsSuperadmin(c) {
 			utils.Error(c, 403, "superadmin access required")
@@ -141,7 +142,45 @@ func main() {
 	devTicketsHandler.RegisterClaudeRoutes(api)
 
 	log.Printf("BaseProject backend listening on :%s (env=%s)", cfg.AppPort, cfg.AppEnv)
-	if err := router.Run(":" + cfg.AppPort); err != nil {
-		log.Fatalf("server failed: %v", err)
+	// Explicit timeouts: router.Run() has none, which leaves the server open to
+	// slow-header/slow-body (Slowloris) connections that pin goroutines.
+	srv := &http.Server{
+		Addr:              ":" + cfg.AppPort,
+		Handler:           router,
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      60 * time.Second,
+		IdleTimeout:       120 * time.Second,
+		MaxHeaderBytes:    1 << 20,
 	}
+	serveErr := make(chan error, 1)
+	go func() { serveErr <- srv.ListenAndServe() }()
+
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+	select {
+	case err := <-serveErr:
+		log.Fatalf("server failed: %v", err)
+	case sig := <-stop:
+		log.Printf("received %s, shutting down gracefully", sig)
+		// Let in-flight requests finish (e.g. a deploy/restart) instead of
+		// cutting connections mid-response.
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		defer cancel()
+		if err := srv.Shutdown(ctx); err != nil {
+			log.Printf("graceful shutdown incomplete: %v", err)
+		}
+	}
+}
+
+// splitList turns "a, b,c" into ["a","b","c"], dropping blanks. A nil result
+// makes gin trust no proxy at all.
+func splitList(s string) []string {
+	var out []string
+	for _, p := range strings.Split(s, ",") {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
 }

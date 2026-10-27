@@ -42,3 +42,11 @@ var allowedMimeTypes = map[string]bool{
 	"image/png":  true,
 	"image/webp": true,
 }
+
+// allowedExt maps a sniffed content type to the only extension we store it
+// under.
+var allowedExt = map[string]string{
+	"image/jpeg": ".jpg",
+	"image/png":  ".png",
+	"image/webp": ".webp",
+}

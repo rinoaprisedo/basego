@@ -16,13 +16,10 @@ func RateLimit(rdb *redis.Client, prefix string, max int, window time.Duration, 
 		ctx := context.Background()
 		key := fmt.Sprintf("ratelimit:%s:%s", prefix, keyFn(c))
 
-		count, err := rdb.Incr(ctx, key).Result()
+		count, err := incrWithTTL(ctx, rdb, key, window)
 		if err != nil {
 			c.Next()
 			return
-		}
-		if count == 1 {
-			rdb.Expire(ctx, key, window)
 		}
 		if count > int64(max) {
 			c.Header("Retry-After", fmt.Sprintf("%d", int(window.Seconds())))
@@ -69,10 +66,7 @@ func RegisterLoginFailure(c *gin.Context, rdb *redis.Client) {
 	if failKey == "" {
 		return
 	}
-	count, _ := rdb.Incr(ctx, failKey).Result()
-	if count == 1 {
-		rdb.Expire(ctx, failKey, time.Minute)
-	}
+	count, _ := incrWithTTL(ctx, rdb, failKey, time.Minute)
 	if int(count) >= maxFails {
 		rdb.Set(ctx, lockKey, "1", time.Duration(lockoutMin)*time.Minute)
 		rdb.Del(ctx, failKey)
@@ -85,4 +79,20 @@ func ClearLoginFailures(c *gin.Context, rdb *redis.Client) {
 	if failKey, _ := failKeyV.(string); failKey != "" {
 		rdb.Del(ctx, failKey)
 	}
+}
+
+// incrScript atomically increments a counter and guarantees it has a TTL
+// (set when missing, never extended — fixed window). One Redis command and
+// one round-trip instead of MULTI/INCR/EXPIRE/EXEC, and no key can be left
+// without an expiry.
+var incrScript = redis.NewScript(`
+local c = redis.call('INCR', KEYS[1])
+if redis.call('PTTL', KEYS[1]) < 0 then
+  redis.call('PEXPIRE', KEYS[1], ARGV[1])
+end
+return c
+`)
+
+func incrWithTTL(ctx context.Context, rdb *redis.Client, key string, window time.Duration) (int64, error) {
+	return incrScript.Run(ctx, rdb, []string{key}, window.Milliseconds()).Int64()
 }

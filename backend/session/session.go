@@ -3,6 +3,7 @@ package session
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"strconv"
@@ -22,6 +23,15 @@ type Data struct {
 
 func key(token string) string         { return "session:" + token }
 func userSetKey(userID uint64) string { return "user_sessions:" + strconv.FormatUint(userID, 10) }
+
+// Hash returns the SHA-256 hex digest of a bearer token. Anything persisted
+// outside Redis (DB session mirror, password-reset tokens) stores this instead
+// of the raw token, so a database leak or read-only SQL access can't be
+// replayed as a live session or reset link.
+func Hash(token string) string {
+	sum := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(sum[:])
+}
 
 func GenerateToken() (string, error) {
 	buf := make([]byte, 32)

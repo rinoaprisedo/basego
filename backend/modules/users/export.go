@@ -23,7 +23,24 @@ func exportRow(u User) []string {
 	if u.LastLoginAt != nil {
 		lastLogin = u.LastLoginAt.Format("2006-01-02 15:04:05")
 	}
-	return []string{u.Name, u.Email, string(u.Status), role, lastLogin, u.CreatedAt.Format("2006-01-02 15:04:05")}
+	return []string{
+		safeCell(u.Name), safeCell(u.Email), string(u.Status), safeCell(role),
+		lastLogin, u.CreatedAt.Format("2006-01-02 15:04:05"),
+	}
+}
+
+// safeCell neutralises spreadsheet formula injection (CWE-1236): a name like
+// `=HYPERLINK(...)` would otherwise execute when an admin opens the export in
+// Excel/Sheets. A leading apostrophe forces the cell to be read as text.
+func safeCell(v string) string {
+	if v == "" {
+		return v
+	}
+	switch v[0] {
+	case '=', '+', '-', '@', '\t', '\r':
+		return "'" + v
+	}
+	return v
 }
 
 // ExportCSV godoc
@@ -45,7 +62,7 @@ func (h *Handler) ExportCSV(c *gin.Context) {
 
 	filename := fmt.Sprintf("users_%s.csv", time.Now().Format("20060102_150405"))
 	c.Header("Content-Disposition", "attachment; filename="+filename)
-	c.Header("Content-Type", "text/csv")
+	c.Header("Content-Type", "text/csv; charset=utf-8")
 
 	w := csv.NewWriter(c.Writer)
 	_ = w.Write(exportColumns)

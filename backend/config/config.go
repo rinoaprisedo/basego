@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 
 	"github.com/joho/godotenv"
@@ -13,6 +14,11 @@ type Config struct {
 	AppEnv      string
 	AppPort     string
 	FrontendURL string
+	// TrustedProxies is a comma-separated list of proxy IPs/CIDRs whose
+	// X-Forwarded-For is honoured. Empty (default) = trust none, so
+	// c.ClientIP() is the real TCP peer and can't be spoofed to dodge rate
+	// limits and login lockout.
+	TrustedProxies string
 
 	DBDriver string
 	DBHost   string
@@ -25,6 +31,10 @@ type Config struct {
 	RedisPort string
 	RedisPass string
 	RedisDB   int
+
+	// AuthzCacheTTL (seconds) bounds how long identity/permission lookups are
+	// cached in-process. 0 disables the cache.
+	AuthzCacheTTL int
 
 	SessionMaxAge        int
 	SessionMaxConcurrent int
@@ -40,6 +50,12 @@ type Config struct {
 	RateLimitLogin           int
 	RateLimitLoginLockoutMin int
 	RateLimitAPI             int
+	// RateLimitLoginAccount: failed logins per ACCOUNT (any IP) within 15 min
+	// before that account is locked for RateLimitLoginLockoutMin. 0 disables.
+	RateLimitLoginAccount int
+	// BcryptMaxConcurrent caps simultaneous bcrypt operations so a login flood
+	// cannot take every CPU core away from the rest of the API.
+	BcryptMaxConcurrent int
 }
 
 var Cfg *Config
@@ -50,9 +66,10 @@ func Load() *Config {
 	}
 
 	Cfg = &Config{
-		AppEnv:      getEnv("APP_ENV", "development"),
-		AppPort:     getEnv("APP_PORT", "8800"),
-		FrontendURL: getEnv("FRONTEND_URL", "http://localhost:8801,http://localhost:8802"),
+		AppEnv:         getEnv("APP_ENV", "development"),
+		AppPort:        getEnv("APP_PORT", "8800"),
+		FrontendURL:    getEnv("FRONTEND_URL", "http://localhost:8801,http://localhost:8802"),
+		TrustedProxies: getEnv("TRUSTED_PROXIES", ""),
 
 		DBDriver: getEnv("DB_DRIVER", "postgres"),
 		DBHost:   getEnv("DB_HOST", "localhost"),
@@ -66,6 +83,8 @@ func Load() *Config {
 		RedisPass: getEnv("REDIS_PASS", ""),
 		RedisDB:   getEnvInt("REDIS_DB", 0),
 
+		AuthzCacheTTL: getEnvInt("AUTHZ_CACHE_TTL_SECONDS", 5),
+
 		SessionMaxAge:        getEnvInt("SESSION_MAX_AGE", 86400),
 		SessionMaxConcurrent: getEnvInt("SESSION_MAX_CONCURRENT", 3),
 
@@ -76,11 +95,22 @@ func Load() *Config {
 		RateLimitLogin:           getEnvInt("RATE_LIMIT_LOGIN", 5),
 		RateLimitLoginLockoutMin: getEnvInt("RATE_LIMIT_LOGIN_LOCKOUT_MINUTES", 15),
 		RateLimitAPI:             getEnvInt("RATE_LIMIT_API", 100),
+		RateLimitLoginAccount:    getEnvInt("RATE_LIMIT_LOGIN_ACCOUNT", 10),
+		BcryptMaxConcurrent:      getEnvInt("BCRYPT_MAX_CONCURRENT", defaultBcryptConcurrency()),
 	}
 
 	Cfg.PrivateStoragePath = filepath.Join(filepath.Dir(filepath.Clean(Cfg.StoragePath)), "private")
 
 	return Cfg
+}
+
+// defaultBcryptConcurrency leaves roughly half the cores free for non-login
+// traffic while a login flood is in progress.
+func defaultBcryptConcurrency() int {
+	if n := runtime.NumCPU() / 2; n > 1 {
+		return n
+	}
+	return 1
 }
 
 func getEnv(key, fallback string) string {

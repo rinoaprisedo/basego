@@ -76,8 +76,12 @@ func (h *Handler) Create(c *gin.Context) {
 		return
 	}
 	actorID := utils.CurrentUserID(c)
-	role, err := h.Service.Create(RoleInput{Name: req.Name, Description: req.Description, IsSuperadmin: req.IsSuperadmin, ActorID: actorID})
+	role, err := h.Service.Create(RoleInput{Name: req.Name, Description: req.Description, IsSuperadmin: req.IsSuperadmin, ActorID: actorID, ActorIsSuperadmin: utils.IsSuperadmin(c)})
 	if err != nil {
+		if errors.Is(err, ErrSuperadminRequired) {
+			utils.Error(c, 403, err.Error())
+			return
+		}
 		utils.Error(c, 400, err.Error())
 		return
 	}

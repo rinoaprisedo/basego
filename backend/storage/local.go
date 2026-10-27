@@ -20,7 +20,7 @@ type LocalStorage struct {
 }
 
 func NewLocalStorage(basePath, baseURL string, maxSize int64) *LocalStorage {
-	_ = os.MkdirAll(basePath, 0o755)
+	_ = os.MkdirAll(basePath, 0o750)
 	return &LocalStorage{BasePath: basePath, BaseURL: baseURL, MaxSize: maxSize}
 }
 
@@ -42,11 +42,13 @@ func (s *LocalStorage) Upload(file multipart.File, header *multipart.FileHeader,
 		return "", err
 	}
 
-	ext := filepath.Ext(header.Filename)
+	// Never trust the client-supplied extension: /uploads is served by
+	// extension, so "x.html" holding PNG magic bytes would be served as HTML.
+	ext := allowedExt[contentType]
 	filename := uuid.New().String() + ext
 
 	dir := filepath.Join(s.BasePath, folder)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return "", err
 	}
 

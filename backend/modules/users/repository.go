@@ -103,6 +103,14 @@ func (r *Repository) SetRole(user *User, roleUUID string) error {
 	return r.DB.Model(user).Update("role_id", role.ID).Error
 }
 
+// RoleIsSuperadmin reports whether the role with this UUID grants superadmin.
+// Unknown UUIDs return false (SetRole ignores them anyway).
+func (r *Repository) RoleIsSuperadmin(roleUUID string) bool {
+	var count int64
+	r.DB.Model(&roles.Role{}).Where("uuid = ? AND is_superadmin = ?", roleUUID, true).Count(&count)
+	return count > 0
+}
+
 func (r *Repository) UpdateLastLogin(user *User, at time.Time) error {
 	return r.DB.Model(user).Update("last_login_at", &at).Error
 }

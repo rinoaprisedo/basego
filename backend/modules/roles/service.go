@@ -3,6 +3,7 @@ package roles
 import (
 	"errors"
 
+	"baseadmin/backend/middleware"
 	"baseadmin/backend/modules/permissions"
 	"baseadmin/backend/utils"
 )
@@ -12,6 +13,9 @@ var (
 	ErrNameInUse        = errors.New("failed to create role (name may already be in use)")
 	ErrSuperadminLocked = errors.New("superadmin role is protected from this action")
 	ErrRoleInUse        = errors.New("role is still assigned to one or more users")
+	// A role flagged is_superadmin bypasses every permission check, so
+	// creating one is itself a privilege escalation.
+	ErrSuperadminRequired = errors.New("only a superadmin can create a superadmin role")
 )
 
 // Service holds business rules for the roles module: superadmin protection
@@ -45,9 +49,14 @@ type RoleInput struct {
 	Description  string
 	IsSuperadmin bool
 	ActorID      *uint64
+	// ActorIsSuperadmin is the caller's own status (not the role's).
+	ActorIsSuperadmin bool
 }
 
 func (s *Service) Create(in RoleInput) (*Role, error) {
+	if in.IsSuperadmin && !in.ActorIsSuperadmin {
+		return nil, ErrSuperadminRequired
+	}
 	role := Role{Name: in.Name, Description: in.Description, IsSuperadmin: in.IsSuperadmin}
 	role.CreatedBy = in.ActorID
 	if err := s.repo.Create(&role); err != nil {
@@ -73,6 +82,7 @@ func (s *Service) Update(uuidStr string, in RoleInput) (before *Role, after *Rol
 	if err := s.repo.Save(role); err != nil {
 		return nil, nil, err
 	}
+	middleware.FlushAuthCache()
 	return &old, role, nil
 }
 
@@ -94,6 +104,7 @@ func (s *Service) Delete(uuidStr string, actorID *uint64) (*Role, error) {
 	if err := s.repo.Delete(role, actorID); err != nil {
 		return nil, err
 	}
+	middleware.FlushAuthCache()
 	return role, nil
 }
 
@@ -134,5 +145,8 @@ func (s *Service) UpdatePermissions(uuidStr string, items []PermissionInput) err
 		}
 		_ = s.repo.UpsertPermission(&perm)
 	}
+	// Permissions are cached per user for a few seconds: drop them now so the
+	// edit applies immediately on this instance.
+	middleware.FlushAuthCache()
 	return nil
 }

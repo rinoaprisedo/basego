@@ -2,6 +2,7 @@ package users
 
 import (
 	"errors"
+	"strings"
 
 	"baseadmin/backend/config"
 	"baseadmin/backend/modules/activity_logs"
@@ -97,8 +98,14 @@ func (h *Handler) Create(c *gin.Context) {
 		Status:   req.Status,
 		RoleUUID: req.RoleUUID,
 		ActorID:  actorID,
+
+		ActorIsSuperadmin: utils.IsSuperadmin(c),
 	})
 	if err != nil {
+		if errors.Is(err, ErrSuperadminRequired) {
+			utils.Error(c, 403, err.Error())
+			return
+		}
 		utils.Error(c, 400, err.Error())
 		return
 	}
@@ -132,7 +139,7 @@ func (h *Handler) Update(c *gin.Context) {
 	}
 
 	actorID := utils.CurrentUserID(c)
-	in := UpdateInput{Name: req.Name, Email: req.Email, Password: req.Password, Status: req.Status, ActorID: actorID}
+	in := UpdateInput{Name: req.Name, Email: req.Email, Password: req.Password, Status: req.Status, ActorID: actorID, ActorIsSuperadmin: utils.IsSuperadmin(c)}
 	if req.RoleUUID != nil {
 		in.RoleProvided = true
 		in.RoleUUID = *req.RoleUUID
@@ -141,6 +148,18 @@ func (h *Handler) Update(c *gin.Context) {
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
 			utils.Error(c, 404, "user not found")
+			return
+		}
+		if errors.Is(err, ErrSuperadminRequired) {
+			utils.Error(c, 403, err.Error())
+			return
+		}
+		if errors.Is(err, ErrInvalidStatus) {
+			utils.Error(c, 400, err.Error())
+			return
+		}
+		if msg := policyMessage(err); msg != "" {
+			utils.Error(c, 400, msg)
 			return
 		}
 		utils.Error(c, 400, "failed to update user")
@@ -208,6 +227,8 @@ func (h *Handler) UpdateStatus(c *gin.Context) {
 			utils.Error(c, 404, "user not found")
 		case errors.Is(err, ErrSuperadminLocked):
 			utils.Error(c, 403, "superadmin status cannot be changed")
+		case errors.Is(err, ErrInvalidStatus):
+			utils.Error(c, 400, err.Error())
 		default:
 			utils.Error(c, 500, "failed to update status")
 		}
@@ -241,14 +262,27 @@ func (h *Handler) UploadAvatar(c *gin.Context) {
 	}
 	defer file.Close()
 
-	url, err := h.Service.UploadAvatar(c.Param("uuid"), file, fileHeader)
+	url, err := h.Service.UploadAvatar(c.Param("uuid"), file, fileHeader, utils.IsSuperadmin(c))
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
 			utils.Error(c, 404, "user not found")
+			return
+		}
+		if errors.Is(err, ErrSuperadminRequired) {
+			utils.Error(c, 403, err.Error())
 			return
 		}
 		utils.Error(c, 400, err.Error())
 		return
 	}
 	utils.Success(c, 200, "avatar uploaded", gin.H{"avatar": url})
+}
+
+// policyMessage returns the password-policy error text so admins see why a
+// password was rejected, and "" for any other (internal) error.
+func policyMessage(err error) string {
+	if err != nil && strings.HasPrefix(err.Error(), "password must") {
+		return err.Error()
+	}
+	return ""
 }

@@ -2,6 +2,7 @@ package auth
 
 import (
 	"errors"
+	"strconv"
 
 	"baseadmin/backend/config"
 	"baseadmin/backend/middleware"
@@ -51,13 +52,25 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 
+	// Account-level lockout is checked first: it rejects before any bcrypt
+	// work, which also makes a distributed guessing attack cheap to absorb.
+	if middleware.AccountLoginLocked(h.Redis, req.Email, h.Cfg.RateLimitLoginAccount) {
+		c.Header("Retry-After", strconv.Itoa(h.Cfg.RateLimitLoginLockoutMin*60))
+		utils.Error(c, 429, "too many failed login attempts for this account, try again later")
+		return
+	}
+
 	result, err := h.Service.Login(req.Email, req.Password, c.ClientIP(), c.Request.UserAgent())
 	if err != nil {
 		switch {
+		case errors.Is(err, ErrServerBusy):
+			c.Header("Retry-After", "2")
+			utils.Error(c, 503, err.Error())
 		case errors.Is(err, ErrAccountInactive):
 			utils.Error(c, 403, err.Error())
 		default:
 			middleware.RegisterLoginFailure(c, h.Redis)
+			middleware.RegisterAccountFailure(h.Redis, req.Email, h.Cfg.RateLimitLoginAccount, h.Cfg.RateLimitLoginLockoutMin)
 			activity_logs.LogActivity(nil, activity_logs.ActionLogin, "auth", "", nil, gin.H{"email": req.Email, "result": "failed"}, c.ClientIP(), c.Request.UserAgent())
 			utils.Error(c, 401, "invalid email or password")
 		}
@@ -69,6 +82,7 @@ func (h *Handler) Login(c *gin.Context) {
 	c.SetCookie(session.CookieName, result.Token, h.Cfg.SessionMaxAge, "/", "", secure, true)
 
 	middleware.ClearLoginFailures(c, h.Redis)
+	middleware.ClearAccountFailures(h.Redis, req.Email)
 	activity_logs.LogActivity(&result.User.ID, activity_logs.ActionLogin, "auth", result.User.UUID.String(), nil, gin.H{"result": "success"}, c.ClientIP(), c.Request.UserAgent())
 
 	utils.Success(c, 200, "login successful", h.profileResponse(result.User))
@@ -104,12 +118,18 @@ func (h *Handler) Me(c *gin.Context) {
 		utils.Error(c, 401, "authentication required")
 		return
 	}
-	user, err := h.Service.Me(*userID)
+	profile, err := middleware.CachedProfile(*userID, func() (any, error) {
+		user, err := h.Service.Me(*userID)
+		if err != nil {
+			return nil, err
+		}
+		return h.profileResponse(user), nil
+	})
 	if err != nil {
 		utils.Error(c, 404, "user not found")
 		return
 	}
-	utils.Success(c, 200, "ok", h.profileResponse(user))
+	utils.Success(c, 200, "ok", profile)
 }
 
 func (h *Handler) profileResponse(u *users.User) gin.H {
@@ -165,6 +185,11 @@ func (h *Handler) ResetPassword(c *gin.Context) {
 		return
 	}
 	if err := h.Service.ResetPassword(req.Token, req.NewPassword); err != nil {
+		if errors.Is(err, ErrServerBusy) {
+			c.Header("Retry-After", "2")
+			utils.Error(c, 503, err.Error())
+			return
+		}
 		if errors.Is(err, ErrUserNotFound) {
 			utils.Error(c, 404, err.Error())
 			return
@@ -200,6 +225,11 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 		return
 	}
 	if err := h.Service.ChangePassword(*userID, req.CurrentPassword, req.NewPassword); err != nil {
+		if errors.Is(err, ErrServerBusy) {
+			c.Header("Retry-After", "2")
+			utils.Error(c, 503, err.Error())
+			return
+		}
 		if errors.Is(err, ErrUserNotFound) {
 			utils.Error(c, 404, err.Error())
 			return

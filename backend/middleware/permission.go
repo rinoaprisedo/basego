@@ -4,12 +4,22 @@ import (
 	"baseadmin/backend/utils"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 )
 
 // RequirePermission checks that the authenticated user's role(s) grant the
 // given action on the given menu path. Superadmin always bypasses this check.
-func RequirePermission(db *gorm.DB, menuPath, action string) gin.HandlerFunc {
+func RequirePermission(authz *AuthCache, menuPath, action string) gin.HandlerFunc {
+	check := checkPermission(authz, menuPath, action)
+	return func(c *gin.Context) {
+		if check(c) {
+			c.Next()
+		}
+	}
+}
+
+// checkPermission is RequirePermission without the trailing c.Next(): true =
+// allowed, false = response already written and the chain aborted.
+func checkPermission(authz *AuthCache, menuPath, action string) func(c *gin.Context) bool {
 	column := map[string]string{
 		"view":   "can_view",
 		"create": "can_create",
@@ -17,30 +27,29 @@ func RequirePermission(db *gorm.DB, menuPath, action string) gin.HandlerFunc {
 		"delete": "can_delete",
 	}[action]
 
-	return func(c *gin.Context) {
+	return func(c *gin.Context) bool {
 		if utils.IsSuperadmin(c) {
-			c.Next()
-			return
+			return true
+		}
+		if column == "" { // unknown action: fail closed
+			utils.Error(c, 403, "you do not have permission to perform this action")
+			c.Abort()
+			return false
 		}
 		userID := utils.CurrentUserID(c)
 		if userID == nil {
 			utils.Error(c, 401, "authentication required")
 			c.Abort()
-			return
+			return false
 		}
 
-		var count int64
-		db.Table("permissions").
-			Joins("JOIN menus ON menus.id = permissions.menu_id").
-			Joins("JOIN users ON users.role_id = permissions.role_id").
-			Where("users.id = ? AND menus.path = ? AND permissions."+column+" = ?", *userID, menuPath, true).
-			Count(&count)
+		allowed := authz.Allowed(*userID, menuPath, column)
 
-		if count == 0 {
+		if !allowed {
 			utils.Error(c, 403, "you do not have permission to perform this action")
 			c.Abort()
-			return
+			return false
 		}
-		c.Next()
+		return true
 	}
 }

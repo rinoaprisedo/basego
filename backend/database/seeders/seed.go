@@ -1,13 +1,17 @@
 package seeders
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"log"
+	"os"
 
 	"baseadmin/backend/modules/menus"
 	"baseadmin/backend/modules/permissions"
 	"baseadmin/backend/modules/roles"
 	"baseadmin/backend/modules/settings"
 	"baseadmin/backend/modules/users"
+	"baseadmin/backend/utils"
 
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
@@ -18,7 +22,6 @@ import (
 func Run(db *gorm.DB) {
 	superadminRole := seedSuperadminRole(db)
 	seedSuperadminUser(db, superadminRole)
-	seedUser(db, superadminRole, "Rino Aprisedo", "rinoaprisedo@gmail.com", "password!!")
 	menuIDs := seedMenus(db)
 	seedPermissions(db, superadminRole.ID, menuIDs)
 	seedSettings(db)
@@ -41,7 +44,18 @@ func seedSuperadminUser(db *gorm.DB, role roles.Role) {
 	if result.Error == nil {
 		return
 	}
-	hashed, err := bcrypt.GenerateFromPassword([]byte("Admin@12345"), 12)
+	// No hardcoded default credential: a public boilerplate with a known
+	// superadmin password is a backdoor on every deployment that forgets to
+	// change it. Use SEED_ADMIN_PASSWORD, or a random one printed exactly once.
+	password := os.Getenv("SEED_ADMIN_PASSWORD")
+	generated := false
+	if password == "" {
+		password = generatePassword()
+		generated = true
+	} else if err := utils.ValidatePasswordPolicy(password); err != nil {
+		log.Fatalf("SEED_ADMIN_PASSWORD rejected: %v", err)
+	}
+	hashed, err := bcrypt.GenerateFromPassword([]byte(password), 12)
 	if err != nil {
 		log.Fatalf("failed to hash superadmin password: %v", err)
 	}
@@ -55,28 +69,19 @@ func seedSuperadminUser(db *gorm.DB, role roles.Role) {
 	if err := db.Create(&user).Error; err != nil {
 		log.Fatalf("failed to seed superadmin user: %v", err)
 	}
+	if generated {
+		log.Printf("seeded superadmin %s with generated password: %s (shown once — change it after first login)", user.Email, password)
+	}
 }
 
-func seedUser(db *gorm.DB, role roles.Role, name, email, password string) {
-	var user users.User
-	result := db.Where("email = ?", email).First(&user)
-	if result.Error == nil {
-		return
+// generatePassword returns a random password that satisfies the policy
+// (upper, digit, symbol, 24 chars).
+func generatePassword() string {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		log.Fatalf("failed to generate password: %v", err)
 	}
-	hashed, err := bcrypt.GenerateFromPassword([]byte(password), 12)
-	if err != nil {
-		log.Fatalf("failed to hash user password: %v", err)
-	}
-	user = users.User{
-		Name:     name,
-		Email:    email,
-		Password: string(hashed),
-		Status:   users.StatusActive,
-		RoleID:   &role.ID,
-	}
-	if err := db.Create(&user).Error; err != nil {
-		log.Fatalf("failed to seed user: %v", err)
-	}
+	return "Aa1!" + hex.EncodeToString(b)[:20]
 }
 
 type menuDef struct {
