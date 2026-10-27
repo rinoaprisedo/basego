@@ -55,7 +55,7 @@ npm install
 npm run dev                     # webadmin on :8801 (port set in vite.config.js, not Vite's default)
 ```
 
-Login: `admin@example.com` / `Admin@12345`. Swagger UI: `http://localhost:8800/swagger/index.html` (superadmin session required).
+Login: `admin@example.com` / password from `SEED_ADMIN_PASSWORD` or the one printed by `seed`. Swagger UI: `http://localhost:8800/swagger/index.html` (superadmin session required).
 
 If `go`, `docker`, or `gh` aren't on `PATH` in a fresh shell, this Mac needed Xcode Command Line Tools + Homebrew installed first (`brew install go`), and Docker Desktop's CLI symlinked manually from `/Applications/Docker.app/Contents/Resources/bin/` into `/opt/homebrew/bin` — a one-time machine-setup issue, not a repo issue.
 
@@ -120,7 +120,7 @@ Generic key-value table (`modules/settings`) — adding a new setting is just a 
 
 Migrations (`database/migrations/migrate.go`) run `AutoMigrate` over: `users.User`, `roles.Role`, `users.Session` (DB mirror, see Auth section), `users.PasswordResetToken`, `users.PasswordHistory`, `menus.MenuSection`, `menus.Menu`, `permissions.Permission`, `settings.Setting`, `activity_logs.ActivityLog`, `dev_tickets.Ticket`, `dev_tickets.Comment`, `dev_tickets.APIToken` — then replaces GORM's plain unique indexes on `users.email`/`roles.name` with **partial** unique indexes (`WHERE deleted_at IS NULL`) so soft-deleted rows don't block reusing an email/name. Idempotent, safe to re-run.
 
-Seeder (`database/seeders/seed.go`) is idempotent (`FirstOrCreate` throughout): superadmin role → superadmin user (`admin@example.com` / `Admin@12345`, only if absent) → default menus (4 sections: Dashboard, User Management, System, Development → Tiket) → full CRUD permissions for superadmin on every seeded menu → default settings (`app_name="BaseProject"`, empty logo/favicon, `maintenance_mode="false"`).
+Seeder (`database/seeders/seed.go`) is idempotent (`FirstOrCreate` throughout): superadmin role → superadmin user (`admin@example.com`, password from `SEED_ADMIN_PASSWORD` or random + printed once, only if absent) → default menus (4 sections: Dashboard, User Management, System, Development → Tiket) → full CRUD permissions for superadmin on every seeded menu → default settings (`app_name="BaseProject"`, empty logo/favicon, `maintenance_mode="false"`).
 
 ## Frontend architecture
 

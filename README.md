@@ -31,7 +31,7 @@ docker compose -p basego exec backend ./baseadmin seed
 
 - Backend: http://localhost:8800
 - Frontend: http://localhost:8801
-- Default login: `admin@example.com` / `Admin@12345`
+- Login: `admin@example.com` / the password printed by `seed` (or the one you set via `SEED_ADMIN_PASSWORD`)
 
 ## Local dev (hybrid: DB/Redis in Docker, apps native)
 
@@ -150,14 +150,12 @@ Requires an authenticated **superadmin** session (`requireSuperadmin` guard on t
 - No 2FA/MFA.
 - `npm audit` currently flags a moderate-severity dev-only advisory in `esbuild`/`vite` (SSRF against the local dev server, not the production build); fixing it means a Vite 8 major upgrade, deliberately not done automatically — see the CI job for status.
 
-## Default credentials
+## Seeded credentials
 
-```
-Email:    admin@example.com
-Password: Admin@12345
-```
-
-Change this immediately in any non-local environment.
+The seeder creates `admin@example.com` with **no hardcoded password**. Either set
+`SEED_ADMIN_PASSWORD` (must satisfy the password policy) before running `seed`, or
+let it generate a random one — it is printed once in the seed log. Change it after
+the first login.
 
 ---
 
