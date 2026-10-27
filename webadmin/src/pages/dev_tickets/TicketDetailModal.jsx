@@ -116,8 +116,8 @@ function TicketDetailModal({ number, onClose, meta, canEdit, canDelete, onEdit, 
             )}
 
             {t.dev_note && (
-              <div className={cn('rounded-lg border px-4 py-3', claudeNote ? 'border-[#d9cdfa] bg-[#f7f4fe]' : 'border-surface-border')}>
-                <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-[#6d4ad6]">
+              <div className={cn('rounded-lg border px-4 py-3', claudeNote ? 'border-[#d9cdfa] bg-[#f7f4fe] dark:border-[#4a3f7a] dark:bg-[#26213d]' : 'border-surface-border')}>
+                <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-[#6d4ad6] dark:text-[#b9a6f7]">
                   {claudeNote && <Bot size={14} />} Catatan development · {t.dev_by}
                 </p>
                 <Linkified text={t.dev_note} className="text-sm text-text-primary" />
@@ -135,11 +135,11 @@ function TicketDetailModal({ number, onClose, meta, canEdit, canDelete, onEdit, 
                     <span
                       className={cn(
                         'absolute -left-[5px] mt-1 h-2.5 w-2.5 rounded-full',
-                        c.is_claude ? 'bg-[#6d4ad6]' : c.kind === 'status' ? 'bg-info' : 'bg-primary',
+                        c.is_claude ? 'bg-[#6d4ad6] dark:bg-[#9c84ee]' : c.kind === 'status' ? 'bg-info' : 'bg-primary',
                       )}
                     />
                     <p className="flex items-center gap-1.5 text-xs text-text-tertiary">
-                      {c.is_claude && <Bot size={12} className="text-[#6d4ad6]" />}
+                      {c.is_claude && <Bot size={12} className="text-[#6d4ad6] dark:text-[#b9a6f7]" />}
                       {c.kind === 'status' && <ArrowRightLeft size={12} />}
                       <span className="font-medium text-text-secondary">{c.author}</span> · {fmt(c.created_at)}
                     </p>

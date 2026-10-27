@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Menu, ChevronDown, LogOut, User } from 'lucide-react'
+import { Menu, ChevronDown, LogOut, User, Sun, Moon } from 'lucide-react'
 import toast from 'react-hot-toast'
 import useSidebarStore from '../../store/sidebarStore'
+import useThemeStore from '../../store/themeStore'
 import useAuthStore from '../../store/authStore'
 import usePageActionsStore from '../../store/pageActionsStore'
 import { logout as logoutApi } from '../../api/auth'
@@ -13,6 +14,8 @@ function Navbar() {
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
   const pageActions = usePageActionsStore((s) => s.actions)
+  const theme = useThemeStore((s) => s.theme)
+  const toggleTheme = useThemeStore((s) => s.toggle)
   const navigate = useNavigate()
 
   const handleLogout = async () => {
@@ -35,6 +38,14 @@ function Navbar() {
         {pageActions}
       </div>
       <div className="flex shrink-0 items-center gap-3">
+        <button
+          onClick={toggleTheme}
+          title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          className="rounded-md p-2 text-text-secondary transition-colors duration-100 hover:bg-surface-hover hover:text-text-primary"
+        >
+          {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
+        </button>
         <div className="relative">
           <button
             onClick={() => setMenuOpen((v) => !v)}

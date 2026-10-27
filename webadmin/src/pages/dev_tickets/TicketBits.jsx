@@ -14,7 +14,7 @@ export function PriorityBadge({ priority }) {
 }
 
 export function CategoryBadge({ category }) {
-  return <span className={cn(pill, 'border bg-white', CATEGORY_STYLE[category])}>{category}</span>
+  return <span className={cn(pill, 'border bg-surface-card', CATEGORY_STYLE[category])}>{category}</span>
 }
 
 export function QCStatus({ status }) {

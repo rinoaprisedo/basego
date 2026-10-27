@@ -4,7 +4,7 @@ export const DEV_STATUS_STYLE = {
   todo: 'bg-surface-hover text-text-secondary',
   in_progress: 'bg-info-bg text-info',
   need_info: 'bg-warning-bg text-warning',
-  done_by_claude: 'bg-[#efe9fd] text-[#6d4ad6]',
+  done_by_claude: 'bg-[#efe9fd] text-[#6d4ad6] dark:bg-[#2b2547] dark:text-[#b9a6f7]',
   done: 'bg-success-bg text-success',
   wont_fix: 'bg-surface-hover text-text-tertiary line-through',
 }
@@ -13,7 +13,7 @@ export const DEV_STATUS_DOT = {
   todo: 'bg-text-tertiary',
   in_progress: 'bg-info',
   need_info: 'bg-warning',
-  done_by_claude: 'bg-[#6d4ad6]',
+  done_by_claude: 'bg-[#6d4ad6] dark:bg-[#9c84ee]',
   done: 'bg-success',
   wont_fix: 'bg-surface-border-hover',
 }
