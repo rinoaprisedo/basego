@@ -24,6 +24,10 @@ function Settings() {
   const queryClient = useQueryClient()
   const applyPrimaryColorLive = useSettingsStore((s) => s.setPrimaryColor)
   const storedPrimaryColor = useSettingsStore((s) => s.primaryColor)
+  const applySidebarColorLive = useSettingsStore((s) => s.setSidebarColor)
+  const storedSidebarColor = useSettingsStore((s) => s.sidebarColor)
+  const [sidebarColor, setSidebarColorInput] = useState('')
+  const [loginText, setLoginText] = useState({ login_badge: '', login_headline: '', login_description: '' })
 
   const { data, isLoading } = useQuery({ queryKey: ['settings'], queryFn: getSettings })
 
@@ -36,6 +40,8 @@ function Settings() {
       setLogoPreview(fileURL(map.app_logo))
       setFaviconPreview(fileURL(map.app_favicon))
       setPrimaryColorInput(map.primary_color || storedPrimaryColor)
+      setSidebarColorInput(map.sidebar_color ?? storedSidebarColor)
+      setLoginText({ login_badge: map.login_badge ?? '', login_headline: map.login_headline ?? '', login_description: map.login_description ?? '' })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data])
@@ -43,6 +49,11 @@ function Settings() {
   const handlePrimaryColorChange = (hex) => {
     setPrimaryColorInput(hex)
     applyPrimaryColorLive(hex) // live-preview across the whole app before saving
+  }
+
+  const handleSidebarColorChange = (hex) => {
+    setSidebarColorInput(hex)
+    applySidebarColorLive(hex)
   }
 
   const saveMutation = useMutation({
@@ -141,6 +152,66 @@ function Settings() {
                 disabled={saveMutation.isPending}
               >
                 Save Color
+              </Button>
+            </div>
+            <div>
+              <p className="mb-2 text-sm font-medium text-text-primary">Sidebar Menu Color</p>
+              <div className="flex items-center gap-3">
+                <input
+                  type="color"
+                  value={/^#[0-9a-f]{6}$/i.test(sidebarColor) ? sidebarColor : '#ffffff'}
+                  onChange={(e) => handleSidebarColorChange(e.target.value)}
+                  className="h-10 w-14 cursor-pointer rounded-md border border-surface-border bg-transparent p-1"
+                />
+                <Input
+                  value={sidebarColor}
+                  onChange={(e) => handleSidebarColorChange(e.target.value)}
+                  placeholder="Default"
+                  className="w-32 uppercase"
+                  maxLength={7}
+                />
+                <Button variant="secondary" onClick={() => handleSidebarColorChange('')}>
+                  Reset
+                </Button>
+              </div>
+              <p className="mt-1 text-xs text-text-secondary">Text and hover shades adjust automatically. Empty = theme default.</p>
+              <Button
+                className="mt-3"
+                onClick={() => saveMutation.mutate({ sidebar_color: sidebarColor })}
+                disabled={saveMutation.isPending}
+              >
+                Save Sidebar Color
+              </Button>
+            </div>
+            <div>
+              <p className="mb-2 text-sm font-medium text-text-primary">Login Page Text</p>
+              <div className="space-y-3">
+                <Input
+                  label="Badge"
+                  value={loginText.login_badge}
+                  onChange={(e) => setLoginText((t) => ({ ...t, login_badge: e.target.value }))}
+                  maxLength={40}
+                />
+                <Input
+                  label="Headline"
+                  value={loginText.login_headline}
+                  onChange={(e) => setLoginText((t) => ({ ...t, login_headline: e.target.value }))}
+                  maxLength={120}
+                />
+                <Input
+                  label="Description"
+                  value={loginText.login_description}
+                  onChange={(e) => setLoginText((t) => ({ ...t, login_description: e.target.value }))}
+                  maxLength={240}
+                />
+              </div>
+              <p className="mt-1 text-xs text-text-secondary">Wrap words in *asterisks* to highlight them with the gradient. Empty badge hides it.</p>
+              <Button
+                className="mt-3"
+                onClick={() => saveMutation.mutate(loginText, { onSuccess: () => useSettingsStore.getState().fetchSettings() })}
+                disabled={saveMutation.isPending}
+              >
+                Save Login Text
               </Button>
             </div>
           </div>

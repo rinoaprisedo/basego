@@ -5,7 +5,7 @@ import Footer from './Footer'
 
 function AppLayout() {
   return (
-    <div className="min-h-screen bg-surface-bg">
+    <div className="min-h-screen app-bg">
       <Sidebar />
       <div className="flex min-h-screen flex-col lg:pl-[240px]">
         <Navbar />

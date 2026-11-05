@@ -162,18 +162,26 @@ func seedPermissions(db *gorm.DB, roleID uint64, menuIDs []uint64) {
 
 func seedSettings(db *gorm.DB) {
 	defaults := map[string]settings.SettingType{
-		"app_name":         settings.TypeString,
-		"app_logo":         settings.TypeFile,
-		"app_favicon":      settings.TypeFile,
-		"primary_color":    settings.TypeString,
-		"maintenance_mode": settings.TypeBoolean,
+		"app_name":          settings.TypeString,
+		"app_logo":          settings.TypeFile,
+		"app_favicon":       settings.TypeFile,
+		"primary_color":     settings.TypeString,
+		"sidebar_color":     settings.TypeString,
+		"login_badge":       settings.TypeString,
+		"login_headline":    settings.TypeString,
+		"login_description": settings.TypeString,
+		"maintenance_mode":  settings.TypeBoolean,
 	}
 	values := map[string]string{
-		"app_name":         "BaseProject",
-		"app_logo":         "",
-		"app_favicon":      "",
-		"primary_color":    "#35494d",
-		"maintenance_mode": "false",
+		"app_name":          "BaseProject",
+		"app_logo":          "",
+		"app_favicon":       "",
+		"primary_color":     "#35494d",
+		"sidebar_color":     "",
+		"login_badge":       "SECURE ACCESS",
+		"login_headline":    "Control everything from *one place.*",
+		"login_description": "Manage users, roles, and system activity with a fast, secure admin console.",
+		"maintenance_mode":  "false",
 	}
 	for key, t := range defaults {
 		var s settings.Setting

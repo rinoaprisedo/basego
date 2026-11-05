@@ -30,7 +30,7 @@ function Navbar() {
   }
 
   return (
-    <header className="sticky top-0 z-20 flex h-[60px] items-center justify-between border-b border-surface-border bg-surface-card px-4 md:px-[28px]">
+    <header className="sticky top-0 z-20 flex h-[60px] items-center justify-between border-b border-surface-border/70 glass px-4 md:px-[28px]">
       <div className="flex min-w-0 flex-1 items-center gap-3">
         <button onClick={toggleSidebar} className="shrink-0 rounded-md p-2 text-text-secondary transition-colors duration-100 hover:bg-surface-hover lg:hidden">
           <Menu size={20} />

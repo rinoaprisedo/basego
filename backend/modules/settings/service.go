@@ -41,10 +41,14 @@ func (s *Service) List() (map[string]string, error) {
 // sensitive (mail credentials, API keys, etc live under other keys in the
 // same table and must stay behind the authenticated List()).
 var publicKeys = map[string]bool{
-	"app_name":      true,
-	"app_logo":      true,
-	"app_favicon":   true,
-	"primary_color": true,
+	"app_name":          true,
+	"app_logo":          true,
+	"app_favicon":       true,
+	"primary_color":     true,
+	"sidebar_color":     true,
+	"login_badge":       true,
+	"login_headline":    true,
+	"login_description": true,
 }
 
 // Public returns only the whitelisted branding settings, for the login page

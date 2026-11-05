@@ -34,6 +34,10 @@ html {
   --c-info-bg: 239 246 255;
   --c-sidebar-bg: 255 255 255;
   --c-sidebar-text: 107 106 101;
+  --c-sidebar-title: var(--c-text);
+  --c-sidebar-muted: var(--c-text-3);
+  --c-sidebar-hover: var(--c-hover);
+  --c-sidebar-border: var(--c-border);
 }
 
 .dark {
@@ -63,6 +67,68 @@ body {
   @apply bg-surface-bg text-text-primary;
   line-height: 1.5;
 }
+
+/* ---- High-tech ambient layer ---- */
+:root {
+  /* Follow the dynamic brand color (Settings > Appearance) */
+  --c-accent: var(--color-primary-rgb);
+  --c-accent-2: var(--color-primary-dark-rgb);
+  --accent-shift: oklch(from rgb(var(--color-primary-rgb)) l c calc(h + 45));
+  --grid-line: 15 23 42 / 0.045;
+}
+.dark {
+  --grid-line: 255 255 255 / 0.04;
+}
+
+.app-bg {
+  background-color: rgb(var(--c-bg));
+  background-image:
+    radial-gradient(900px 500px at 85% -10%, rgb(var(--c-accent) / 0.16), transparent 60%),
+    radial-gradient(700px 500px at 5% 105%, rgb(var(--c-accent-2) / 0.13), transparent 60%),
+    linear-gradient(rgb(var(--grid-line)) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(var(--grid-line)) 1px, transparent 1px);
+  background-size: auto, auto, 36px 36px, 36px 36px;
+  background-attachment: fixed;
+}
+
+.glass {
+  background: rgb(var(--c-card) / 0.72);
+  backdrop-filter: blur(14px) saturate(160%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+}
+
+.glow-card {
+  position: relative;
+  border: 1px solid rgb(var(--c-border) / 0.9);
+  border-radius: 16px;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.04), 0 8px 30px -12px rgb(var(--c-accent) / 0.25);
+  transition: transform .2s, box-shadow .2s, border-color .2s;
+}
+.glow-card:hover {
+  transform: translateY(-2px);
+  border-color: rgb(var(--c-accent) / 0.55);
+  box-shadow: 0 0 0 1px rgb(var(--c-accent) / 0.25), 0 12px 36px -10px rgb(var(--c-accent) / 0.45);
+}
+
+.text-gradient {
+  background: linear-gradient(90deg, rgb(var(--c-accent)), var(--accent-shift, rgb(var(--c-accent-2))));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.hero-card {
+  background:
+    radial-gradient(500px 220px at 90% 0%, rgb(var(--c-accent) / 0.35), transparent 65%),
+    radial-gradient(420px 220px at 0% 100%, rgb(var(--c-accent-2) / 0.35), transparent 65%),
+    linear-gradient(135deg, color-mix(in srgb, rgb(var(--c-accent)) 14%, #0a0d14), color-mix(in srgb, rgb(var(--c-accent-2)) 22%, #0d1018));
+  color: #e6edf7;
+}
+
+@keyframes pulse-dot { 0%,100% { opacity: 1; transform: scale(1) } 50% { opacity: .4; transform: scale(1.6) } }
+.pulse-dot { animation: pulse-dot 1.8s ease-in-out infinite; }
+@keyframes rise { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: none } }
+.rise { animation: rise .45s ease both; }
 
 ::-webkit-scrollbar {
   width: 4px;

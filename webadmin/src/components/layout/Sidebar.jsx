@@ -40,12 +40,12 @@ function Sidebar() {
   return (
     <>
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-[240px] flex-col border-r border-surface-border bg-sidebar-bg transition-transform duration-200 ${
+        className={`fixed inset-y-0 left-0 z-40 flex w-[240px] flex-col border-r border-[rgb(var(--c-sidebar-border)/0.7)] bg-sidebar-bg/80 backdrop-blur-xl transition-transform duration-200 ${
           isCollapsed ? '-translate-x-full lg:translate-x-0' : 'translate-x-0'
         }`}
       >
-        <div className="relative flex h-[60px] items-center justify-center border-b border-surface-border px-4">
-          <span className="truncate text-[17px] font-bold tracking-[-.02em] text-text-primary">{appName}</span>
+        <div className="relative flex h-[60px] items-center justify-center border-b border-[rgb(var(--c-sidebar-border))] px-4">
+          <span className="mr-2 h-2 w-2 rounded-full bg-[rgb(var(--c-accent))] pulse-dot shadow-[0_0_10px_rgb(var(--c-accent))]" /><span className="truncate text-[17px] font-bold tracking-[-.02em] text-gradient">{appName}</span>
           <button onClick={toggle} className="absolute right-4 text-text-secondary lg:hidden">
             <X size={20} />
           </button>
@@ -58,7 +58,7 @@ function Sidebar() {
 
             return (
               <div key={section.id || section.uuid || section.name} className="mb-4">
-                <div className="mb-1 flex items-center gap-2 px-2 py-2 text-[10px] font-semibold uppercase tracking-[.08em] text-text-tertiary">
+                <div className="mb-1 flex items-center gap-2 px-2 py-2 text-[10px] font-semibold uppercase tracking-[.08em] text-[rgb(var(--c-sidebar-muted))]">
                   {section.name}
                 </div>
                 {visibleMenus.map((menu) => {
@@ -71,8 +71,8 @@ function Sidebar() {
                       className={({ isActive }) =>
                         `mb-1 flex h-[38px] items-center gap-3 rounded-lg px-[10px] text-[13px] transition-colors duration-100 ${
                           isActive
-                            ? 'bg-sidebar-active font-medium text-white'
-                            : 'text-sidebar-text hover:bg-surface-hover hover:text-text-primary'
+                            ? 'bg-sidebar-active font-medium text-white shadow-[0_0_18px_-2px_rgb(var(--c-accent)/0.55)] ring-1 ring-[rgb(var(--c-accent)/0.5)]'
+                            : 'text-sidebar-text hover:bg-[rgb(var(--c-sidebar-hover))] hover:text-[rgb(var(--c-sidebar-title))]'
                         }`
                       }
                     >
@@ -87,7 +87,7 @@ function Sidebar() {
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={close}
-                    className="mb-1 flex h-[38px] items-center gap-3 rounded-lg px-[10px] text-[13px] text-sidebar-text transition-colors duration-100 hover:bg-surface-hover hover:text-text-primary"
+                    className="mb-1 flex h-[38px] items-center gap-3 rounded-lg px-[10px] text-[13px] text-sidebar-text transition-colors duration-100 hover:bg-[rgb(var(--c-sidebar-hover))] hover:text-[rgb(var(--c-sidebar-title))]"
                   >
                     <FileCode2 size={16} strokeWidth={1.7} />
                     Swagger
