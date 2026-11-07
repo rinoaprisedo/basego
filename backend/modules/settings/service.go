@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"mime/multipart"
+	"strconv"
 
 	"baseadmin/backend/middleware"
 	"baseadmin/backend/storage"
@@ -12,6 +13,7 @@ import (
 )
 
 var ErrInvalidUploadTarget = errors.New("target must be app_logo or app_favicon")
+var ErrInvalidPageSize = errors.New("default_page_size must be a whole number from 1 to 200")
 
 // Service holds business rules for the settings module: key/value upsert and
 // invalidating the maintenance-mode cache when it changes.
@@ -49,6 +51,7 @@ var publicKeys = map[string]bool{
 	"login_badge":       true,
 	"login_headline":    true,
 	"login_description": true,
+	"default_page_size": true,
 }
 
 // Public returns only the whitelisted branding settings, for the login page
@@ -69,6 +72,9 @@ func (s *Service) Public() (map[string]string, error) {
 }
 
 func (s *Service) BulkUpdate(payload map[string]string) error {
+	if v, ok := payload["default_page_size"]; ok && !validPageSize(v) {
+		return ErrInvalidPageSize
+	}
 	for key, value := range payload {
 		if err := s.repo.Upsert(key, value, TypeString); err != nil {
 			return err
@@ -96,4 +102,10 @@ func (s *Service) Upload(target string, file multipart.File, header *multipart.F
 		return "", err
 	}
 	return s.storage.GetURL(path), nil
+}
+
+// validPageSize accepts whole numbers 1-200 (the list endpoints cap limit at 200).
+func validPageSize(v string) bool {
+	n, err := strconv.Atoi(v)
+	return err == nil && n >= 1 && n <= 200 && strconv.Itoa(n) == v
 }

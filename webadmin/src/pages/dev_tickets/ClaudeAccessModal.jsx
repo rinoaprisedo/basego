@@ -1,6 +1,6 @@
 import { useState } from 'react'
+import { formatDate, formatDateTime } from '../../utils/date'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { format } from 'date-fns'
 import toast from 'react-hot-toast'
 import { Copy, KeyRound, Trash2 } from 'lucide-react'
 import Modal from '../../components/ui/Modal'
@@ -71,7 +71,7 @@ function ClaudeAccessModal({ open, onClose, canEdit }) {
   const envFile = `BASEGO_TICKET_API=${apiOrigin}/api/v1\nBASEGO_TICKET_TOKEN=${created || 'basego_dev_…'}`
 
   return (
-    <Modal open={open} onClose={close} title="Akses Claude Code" size="lg">
+    <Modal open={open} onClose={close} title="Akses Claude Code" icon={KeyRound} size="lg">
       <div className="space-y-6">
         <p className="text-sm text-text-secondary">
           Claude Code membaca tiket, mengunduh screenshot, lalu menandai tiket <b>In Progress</b> → <b>Done by Claude</b> beserta catatan perbaikannya, lewat
@@ -124,8 +124,8 @@ function ClaudeAccessModal({ open, onClose, canEdit }) {
                   <div className="min-w-0 flex-1">
                     <p className="font-medium text-text-primary">{t.name}</p>
                     <p className="text-[11px] text-text-tertiary">
-                      <span className="font-mono">{t.prefix}…</span> · dibuat {t.created_by} {format(new Date(t.created_at), 'dd/MM/yyyy')} ·{' '}
-                      {t.last_used_at ? `terakhir dipakai ${format(new Date(t.last_used_at), 'dd/MM/yyyy HH:mm')}` : 'belum dipakai'}
+                      <span className="font-mono">{t.prefix}…</span> · dibuat {t.created_by} {formatDate(t.created_at)} ·{' '}
+                      {t.last_used_at ? `terakhir dipakai ${formatDateTime(t.last_used_at)}` : 'belum dipakai'}
                     </p>
                   </div>
                   {canEdit && (

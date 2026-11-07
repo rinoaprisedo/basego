@@ -1,15 +1,28 @@
 import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { Plus, Pencil, Trash2, GripVertical } from 'lucide-react'
-import Badge from '../../components/ui/Badge'
+import { Plus, FolderPlus, Pencil, Trash2, GripVertical } from 'lucide-react'
+import MenuIcon from '../../components/ui/MenuIcon'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import EmptyState from '../../components/ui/EmptyState'
 import Skeleton from '../../components/ui/Skeleton'
 import { Menubar, MenubarAction, MenubarLabel, MenubarSeparator } from '../../components/ui/Menubar'
 import MenuFormModal from './MenuFormModal'
-import { getMenus, createMenu, updateMenu, deleteMenu, reorderMenus, getMenuSections } from '../../api/menus'
+import MenuSectionFormModal from './MenuSectionFormModal'
+import {
+  getMenus,
+  createMenu,
+  updateMenu,
+  deleteMenu,
+  reorderMenus,
+  getMenuSections,
+  createMenuSection,
+  updateMenuSection,
+  deleteMenuSection,
+  reorderMenuSections,
+} from '../../api/menus'
 import usePermission from '../../hooks/usePermission'
+import PageToolbar from '../../components/ui/PageToolbar'
 import usePageActions from '../../hooks/usePageActions'
 
 function MenuList() {
@@ -21,6 +34,11 @@ function MenuList() {
   const [dragSection, setDragSection] = useState(null)
   const [dragIndex, setDragIndex] = useState(null)
   const [overIndex, setOverIndex] = useState(null)
+  const [sectionFormOpen, setSectionFormOpen] = useState(false)
+  const [editingSection, setEditingSection] = useState(null)
+  const [deletingSection, setDeletingSection] = useState(null)
+  const [dragSecIndex, setDragSecIndex] = useState(null)
+  const [overSecIndex, setOverSecIndex] = useState(null)
 
   // GET /menus returns sections with a nested `menus` array already grouped
   // server-side (used by the sidebar tree too) — no separate flat menu list
@@ -58,6 +76,39 @@ function MenuList() {
     onError: (err) => toast.error(err.response?.data?.message || 'Reorder failed'),
   })
 
+  const refreshMenus = () => {
+    queryClient.invalidateQueries({ queryKey: ['menus'] })
+    queryClient.invalidateQueries({ queryKey: ['menu-sections'] })
+  }
+
+  const saveSectionMutation = useMutation({
+    mutationFn: (payload) =>
+      editingSection ? updateMenuSection(editingSection.uuid, payload) : createMenuSection(payload),
+    onSuccess: () => {
+      toast.success(editingSection ? 'Section updated' : 'Section created')
+      refreshMenus()
+      setSectionFormOpen(false)
+      setEditingSection(null)
+    },
+    onError: (err) => toast.error(err.response?.data?.message || 'Save failed'),
+  })
+
+  const deleteSectionMutation = useMutation({
+    mutationFn: (uuid) => deleteMenuSection(uuid),
+    onSuccess: () => {
+      toast.success('Section deleted')
+      refreshMenus()
+      setDeletingSection(null)
+    },
+    onError: (err) => toast.error(err.response?.data?.message || 'Delete failed'),
+  })
+
+  const reorderSectionMutation = useMutation({
+    mutationFn: (payload) => reorderMenuSections(payload),
+    onSuccess: refreshMenus,
+    onError: (err) => toast.error(err.response?.data?.message || 'Reorder failed'),
+  })
+
   // Each item already carries its own `menus` array, sorted by the backend.
   const grouped = data?.data || []
   const sections = sectionsData?.data || []
@@ -71,10 +122,21 @@ function MenuList() {
     reorderMutation.mutate(items.map((m, i) => ({ uuid: m.uuid, order: orders[i] })))
   }
 
+  const dropSectionReorder = (fromIndex, toIndex) => {
+    if (fromIndex === toIndex) return
+    const orders = grouped.map((sec) => sec.order)
+    const items = [...grouped]
+    const [moved] = items.splice(fromIndex, 1)
+    items.splice(toIndex, 0, moved)
+    reorderSectionMutation.mutate(items.map((sec, i) => ({ uuid: sec.uuid, order: orders[i] })))
+  }
+
   const resetDrag = () => {
     setDragSection(null)
     setDragIndex(null)
     setOverIndex(null)
+    setDragSecIndex(null)
+    setOverSecIndex(null)
   }
 
   usePageActions(
@@ -86,11 +148,19 @@ function MenuList() {
             <>
               <MenubarSeparator />
               <MenubarAction
-                label="Add New"
+                label="Add Menu"
                 icon={Plus}
                 onClick={() => {
                   setEditing(null)
                   setFormOpen(true)
+                }}
+              />
+              <MenubarAction
+                label="Add Section"
+                icon={FolderPlus}
+                onClick={() => {
+                  setEditingSection(null)
+                  setSectionFormOpen(true)
                 }}
               />
             </>
@@ -103,19 +173,80 @@ function MenuList() {
 
   return (
     <div className="space-y-4">
+      <div className="rounded-lg border border-surface-border bg-surface-card shadow-card">
+        <PageToolbar />
+      </div>
       {isLoading ? (
-        <Skeleton className="h-64 w-full" />
+        <div className="space-y-4">
+          <Skeleton className="h-64 w-full" />
+          <Skeleton className="h-64 w-full" />
+        </div>
       ) : grouped.length === 0 ? (
         <EmptyState title="No menu sections found" />
       ) : (
         <div className="space-y-4">
-          {grouped.map((sec) => (
-            <div key={sec.uuid} className="rounded-lg border border-surface-border bg-surface-card">
-              <div className="border-b border-surface-border px-4 py-3 font-semibold text-text-primary">
-                {sec.name}
+          {grouped.map((sec, si) => (
+            <div
+              key={sec.uuid}
+              onDragOver={(e) => {
+                if (dragSecIndex === null) return
+                e.preventDefault()
+                setOverSecIndex(si)
+              }}
+              onDrop={(e) => {
+                if (dragSecIndex === null) return
+                e.preventDefault()
+                dropSectionReorder(dragSecIndex, si)
+                resetDrag()
+              }}
+              className={`overflow-hidden rounded-xl border bg-surface-card shadow-card transition-opacity ${
+                dragSecIndex === si ? 'opacity-40' : ''
+              } ${overSecIndex === si && dragSecIndex !== si ? 'border-primary ring-2 ring-primary/30' : 'border-surface-border'}`}
+            >
+              <div
+                draggable={canEdit('menus')}
+                onDragStart={() => setDragSecIndex(si)}
+                onDragEnd={resetDrag}
+                className="flex items-center gap-3 border-b border-surface-border bg-primary/[0.06] px-4 py-3"
+              >
+                {canEdit('menus') && (
+                  <GripVertical size={14} className="shrink-0 cursor-grab text-text-tertiary active:cursor-grabbing" />
+                )}
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-white">
+                  <MenuIcon name={sec.icon} size={17} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-semibold text-text-primary">{sec.name}</div>
+                  <div className="text-xs text-text-tertiary">
+                    {sec.menus.length} {sec.menus.length === 1 ? 'menu' : 'menus'}
+                  </div>
+                </div>
+                <div className="flex shrink-0 items-center gap-1.5">
+                  {canEdit('menus') && (
+                    <button
+                      onClick={() => {
+                        setEditingSection(sec)
+                        setSectionFormOpen(true)
+                      }}
+                      className="rounded-md border border-surface-border bg-surface-card p-1.5 hover:bg-surface-hover"
+                      title="Edit section"
+                    >
+                      <Pencil size={14} />
+                    </button>
+                  )}
+                  {canDelete('menus') && (
+                    <button
+                      onClick={() => setDeletingSection(sec)}
+                      className="rounded-md border border-danger/30 bg-surface-card p-1.5 text-danger hover:bg-danger/10"
+                      title="Delete section"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                </div>
               </div>
               {sec.menus.length === 0 ? (
-                <div className="p-4 text-sm text-text-secondary">No menus in this section</div>
+                <div className="p-6 text-center text-sm text-text-tertiary">No menus in this section</div>
               ) : (
                 <ul className="divide-y divide-surface-border">
                   {sec.menus.map((m, i) => {
@@ -136,6 +267,7 @@ function MenuList() {
                           setOverIndex(i)
                         }}
                         onDrop={(e) => {
+                          if (dragSection === null) return
                           e.preventDefault()
                           if (dragSection === sec.uuid && dragIndex !== null) {
                             dropReorder(sec.menus, dragIndex, i)
@@ -143,30 +275,43 @@ function MenuList() {
                           resetDrag()
                         }}
                         onDragEnd={resetDrag}
-                        className={`flex items-center justify-between gap-3 px-4 py-2.5 ${isDragging ? 'opacity-40' : ''} ${isOver ? 'border-t-2 border-primary' : ''}`}
+                        className={`flex items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-hover/50 ${isDragging ? 'opacity-40' : ''} ${isOver ? 'border-t-2 border-primary' : ''}`}
                       >
-                        <div className="flex min-w-0 items-center gap-3 text-sm">
-                          {draggable && (
-                            <GripVertical size={14} className="shrink-0 cursor-grab text-text-secondary active:cursor-grabbing" />
-                          )}
-                          <span className="shrink-0 font-medium text-text-primary">{m.name}</span>
-                          <span className="min-w-0 flex-1 truncate text-text-secondary">{m.path}</span>
-                          <Badge variant={m.is_active ? 'success' : 'neutral'}>{m.is_active ? 'active' : 'inactive'}</Badge>
+                        {draggable && (
+                          <GripVertical size={14} className="shrink-0 cursor-grab text-text-tertiary active:cursor-grabbing" />
+                        )}
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface-hover text-text-secondary">
+                          <MenuIcon name={m.icon} size={15} />
                         </div>
-                        <div className="flex shrink-0 items-center gap-1">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="truncate text-sm font-medium text-text-primary">{m.name}</span>
+                            <span
+                              className={`h-1.5 w-1.5 shrink-0 rounded-full ${m.is_active ? 'bg-success' : 'bg-text-tertiary'}`}
+                              title={m.is_active ? 'Active' : 'Inactive'}
+                            />
+                          </div>
+                          <div className="truncate font-mono text-xs text-text-tertiary">{m.path}</div>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-1.5">
                           {canEdit('menus') && (
                             <button
                               onClick={() => {
                                 setEditing(m)
                                 setFormOpen(true)
                               }}
-                              className="rounded p-1.5 hover:bg-surface-hover"
+                              className="rounded-md border border-surface-border p-1.5 hover:bg-surface-hover"
+                              title="Edit"
                             >
                               <Pencil size={14} />
                             </button>
                           )}
                           {canDelete('menus') && (
-                            <button onClick={() => setDeleting(m)} className="rounded p-1.5 text-danger hover:bg-danger/10">
+                            <button
+                              onClick={() => setDeleting(m)}
+                              className="rounded-md border border-danger/30 p-1.5 text-danger hover:bg-danger/10"
+                              title="Delete"
+                            >
                               <Trash2 size={14} />
                             </button>
                           )}
@@ -180,6 +325,22 @@ function MenuList() {
           ))}
         </div>
       )}
+
+      <MenuSectionFormModal
+        open={sectionFormOpen}
+        onClose={() => setSectionFormOpen(false)}
+        onSubmit={(values) => saveSectionMutation.mutate(values)}
+        initialData={editingSection}
+        loading={saveSectionMutation.isPending}
+      />
+
+      <ConfirmDialog
+        open={!!deletingSection}
+        onClose={() => setDeletingSection(null)}
+        onConfirm={() => deleteSectionMutation.mutate(deletingSection.uuid)}
+        loading={deleteSectionMutation.isPending}
+        message={`Delete section "${deletingSection?.name}"? This cannot be undone.`}
+      />
 
       <MenuFormModal
         open={formOpen}

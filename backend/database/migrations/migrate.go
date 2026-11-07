@@ -16,6 +16,7 @@ import (
 
 // Run applies GORM AutoMigrate across every model in the project.
 func Run(db *gorm.DB) {
+	migrateTicketStatus(db)
 	err := db.AutoMigrate(
 		&users.User{},
 		&roles.Role{},
@@ -100,4 +101,36 @@ func applyPerformanceIndexes(db *gorm.DB) {
 			log.Printf("warning: trigram index failed (%s): %v", stmt, err)
 		}
 	}
+}
+
+// migrateTicketStatus folds the legacy qc_status + dev_status columns of
+// dev_tickets into the single `status` column and drops them. Runs before
+// AutoMigrate (which would otherwise try to add a NOT NULL column to rows
+// that already exist). Idempotent: does nothing once dev_status is gone.
+func migrateTicketStatus(db *gorm.DB) {
+	m := db.Migrator()
+	if !m.HasTable("dev_tickets") || !m.HasColumn("dev_tickets", "dev_status") {
+		return
+	}
+	steps := []string{
+		`ALTER TABLE dev_tickets ADD COLUMN IF NOT EXISTS status varchar(20)`,
+		`UPDATE dev_tickets SET status = CASE
+			WHEN qc_status = 'Closed' OR dev_status = 'wont_fix' THEN 'closed'
+			WHEN qc_status = 'Reopen' AND dev_status IN ('todo', 'done', 'done_by_claude') THEN 'reopen'
+			WHEN dev_status = 'in_progress' THEN 'in_progress'
+			WHEN dev_status = 'need_info' THEN 'need_info'
+			WHEN dev_status = 'done_by_claude' THEN 'done_dev'
+			WHEN dev_status = 'done' THEN 'deployed'
+			ELSE 'open' END
+			WHERE status IS NULL`,
+		`ALTER TABLE dev_tickets ALTER COLUMN status SET NOT NULL`,
+		`ALTER TABLE dev_tickets DROP COLUMN qc_status`,
+		`ALTER TABLE dev_tickets DROP COLUMN dev_status`,
+	}
+	for _, stmt := range steps {
+		if err := db.Exec(stmt).Error; err != nil {
+			log.Fatalf("ticket status migration failed (%s): %v", stmt, err)
+		}
+	}
+	log.Println("dev_tickets: merged qc_status + dev_status into status")
 }

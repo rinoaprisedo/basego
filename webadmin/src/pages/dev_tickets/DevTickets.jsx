@@ -1,3 +1,4 @@
+import { formatDateTime } from '../../utils/date'
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -8,13 +9,14 @@ import Select from '../../components/ui/Select'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import FilterPanel from '../../components/ui/FilterPanel'
 import { Menubar, MenubarAction, MenubarLabel, MenubarMenu, MenubarSeparator } from '../../components/ui/Menubar'
+import useSettingsStore from '../../store/settingsStore'
 import usePageActions from '../../hooks/usePageActions'
 import usePermission from '../../hooks/usePermission'
 import useFilters, { compact } from '../../hooks/useFilters'
 import useDebouncedValue from '../../hooks/useDebouncedValue'
 import { deleteTicket, getTicketMeta, getTickets } from '../../api/devTickets'
-import { DEV_STATUS_DOT, buildPrompt, copyText, dateOnly } from './ticketUtils'
-import { CategoryBadge, DevStatusBadge, Platform, PriorityBadge, QCStatus } from './TicketBits'
+import { STATUS_DOT, buildPrompt, copyText } from './ticketUtils'
+import { CategoryBadge, Platform, PriorityBadge, StatusBadge } from './TicketBits'
 import TicketFormModal from './TicketFormModal'
 import TicketDetailModal from './TicketDetailModal'
 import ImportModal from './ImportModal'
@@ -22,18 +24,24 @@ import ClaudeAccessModal from './ClaudeAccessModal'
 import { cn } from '../../utils/cn'
 
 const MENU = 'dev-tickets'
-const INITIAL_FILTERS = { platform: '', role: '', priority: '', category: '', qc_status: '', module: '' }
+const INITIAL_FILTERS = { platform: '', role: '', priority: '', category: '', module: '' }
 
-// "Aktif" = everything still waiting on development.
+// Statuses that need someone's attention get a solid badge.
+const ATTENTION_BADGE = {
+  open: 'bg-primary text-white',
+  reopen: 'bg-danger text-white',
+  need_info: 'bg-warning text-white',
+}
+
 const TABS = [
   { key: '', label: 'Semua' },
-  { key: 'todo,in_progress,need_info', label: 'Aktif' },
-  { key: 'todo', label: 'To Do' },
+  { key: 'open', label: 'Open' },
   { key: 'in_progress', label: 'In Progress' },
-  { key: 'need_info', label: 'Butuh Info' },
-  { key: 'done_by_claude', label: 'Done by Claude' },
-  { key: 'done', label: 'Done' },
-  { key: 'wont_fix', label: "Won't Fix" },
+  { key: 'need_info', label: 'Need Info' },
+  { key: 'done_dev', label: 'Done Dev' },
+  { key: 'deployed', label: 'Deployed' },
+  { key: 'closed', label: 'Closed' },
+  { key: 'reopen', label: 'Re Open' },
 ]
 
 function DevTickets() {
@@ -41,12 +49,12 @@ function DevTickets() {
   const queryClient = useQueryClient()
   const [params, setParams] = useSearchParams()
   const [page, setPage] = useState(1)
-  const [limit, setLimit] = useState(25)
+  const [limit, setLimit] = useState(() => useSettingsStore.getState().pageSize)
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebouncedValue(search)
   const [sortBy, setSortBy] = useState('number')
   const [sortDir, setSortDir] = useState('desc')
-  const [tab, setTab] = useState('todo,in_progress,need_info')
+  const [tab, setTab] = useState('')
   const { filters, active, field, apply, reset } = useFilters(INITIAL_FILTERS)
   const [form, setForm] = useState(null) // null | {} (new) | ticket
   const [importing, setImporting] = useState(false)
@@ -66,7 +74,7 @@ function DevTickets() {
   const { data, isLoading } = useQuery({
     queryKey: ['dev-tickets', { page, limit, debouncedSearch, sortBy, sortDir, tab, filters }],
     queryFn: () =>
-      getTickets(compact({ page, limit, search: debouncedSearch, sort_by: sortBy, sort_dir: sortDir, dev_status: tab, ...filters })),
+      getTickets(compact({ page, limit, search: debouncedSearch, sort_by: sortBy, sort_dir: sortDir, status: tab, ...filters })),
     placeholderData: keepPreviousData,
   })
 
@@ -85,7 +93,7 @@ function DevTickets() {
   const tabCount = (key) => {
     if (!counts) return null
     if (!key) return counts.total
-    return key.split(',').reduce((n, k) => n + (counts.dev_status[k] || 0), 0)
+    return key.split(',').reduce((n, k) => n + (counts.status[k] || 0), 0)
   }
 
   const columns = [
@@ -99,7 +107,7 @@ function DevTickets() {
       key: 'reported_on',
       label: 'Tanggal',
       sortable: true,
-      render: (row) => <span className="whitespace-nowrap text-text-secondary">{dateOnly(row.reported_on).split('-').reverse().join('/')}</span>,
+      render: (row) => <span className="whitespace-nowrap text-text-secondary">{formatDateTime(row.reported_on)}</span>,
     },
     { key: 'platform', label: 'Platform', render: (row) => <Platform platform={row.platform} /> },
     { key: 'role', label: 'Role', render: (row) => <span className="whitespace-nowrap text-text-secondary">{row.role}</span> },
@@ -121,8 +129,7 @@ function DevTickets() {
     },
     { key: 'priority', label: 'Priority', sortable: true, render: (row) => <PriorityBadge priority={row.priority} /> },
     { key: 'category', label: 'Category', render: (row) => <CategoryBadge category={row.category} /> },
-    { key: 'qc_status', label: 'QC', render: (row) => <QCStatus status={row.qc_status} /> },
-    { key: 'dev_status', label: 'Development', render: (row) => <DevStatusBadge status={row.dev_status} /> },
+    { key: 'status', label: 'Status', render: (row) => <StatusBadge status={row.status} /> },
     {
       key: 'actions',
       label: '',
@@ -134,7 +141,7 @@ function DevTickets() {
             e.stopPropagation()
             copyText(buildPrompt(row), `Prompt tiket #${row.number} disalin`)
           }}
-          className="rounded p-1.5 text-text-tertiary hover:bg-surface-hover hover:text-primary"
+          className="rounded-md border border-surface-border p-1.5 text-text-tertiary hover:bg-surface-hover hover:text-primary"
         >
           <Copy size={15} />
         </button>
@@ -159,7 +166,6 @@ function DevTickets() {
                     ['role', 'Role', meta.roles],
                     ['priority', 'Priority', meta.priorities],
                     ['category', 'Category', meta.categories],
-                    ['qc_status', 'QC status', meta.qc_statuses],
                     ['module', 'Modul', meta.modules],
                   ].map(([key, label, options]) => (
                     <Select key={key} label={label} {...field(key)}>
@@ -197,10 +203,21 @@ function DevTickets() {
                   tab === t.key ? 'bg-primary text-white' : 'text-text-secondary hover:bg-surface-hover',
                 )}
               >
-                {single && <span className={cn('h-1.5 w-1.5 rounded-full', tab === t.key ? 'bg-white' : DEV_STATUS_DOT[t.key])} />}
+                {single && <span className={cn('h-1.5 w-1.5 rounded-full', tab === t.key ? 'bg-white' : STATUS_DOT[t.key])} />}
                 {t.label}
                 {n != null && (
-                  <span className={cn('rounded-full px-1.5 text-[11px]', tab === t.key ? 'bg-white/20' : 'bg-surface-hover text-text-tertiary')}>{n}</span>
+                  <span
+                    className={cn(
+                      'min-w-[22px] rounded-full px-1.5 py-0.5 text-center text-xs font-bold leading-none',
+                      tab === t.key
+                        ? 'bg-white text-primary'
+                        : n === 0
+                          ? 'bg-surface-hover font-medium text-text-tertiary'
+                          : ATTENTION_BADGE[t.key] || 'bg-primary/15 text-primary',
+                    )}
+                  >
+                    {n}
+                  </span>
                 )}
               </button>
             )
@@ -209,11 +226,6 @@ function DevTickets() {
         {counts?.open_high > 0 && (
           <span className="inline-flex items-center gap-1.5 rounded-md bg-danger-bg px-3 py-1.5 text-xs font-medium text-danger">
             <AlertTriangle size={13} /> {counts.open_high} tiket High/Critical belum selesai
-          </span>
-        )}
-        {counts?.qc_status?.Reopen > 0 && (
-          <span className="inline-flex items-center rounded-md bg-warning-bg px-3 py-1.5 text-xs font-medium text-warning">
-            {counts.qc_status.Reopen} dibuka ulang QC
           </span>
         )}
       </div>

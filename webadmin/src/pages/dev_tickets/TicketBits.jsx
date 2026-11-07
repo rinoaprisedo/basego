@@ -1,12 +1,12 @@
 import { Fragment } from 'react'
 import { Monitor, Server, Smartphone, Globe, LayoutDashboard } from 'lucide-react'
 import { cn } from '../../utils/cn'
-import { CATEGORY_STYLE, DEV_STATUS_LABEL, DEV_STATUS_STYLE, PRIORITY_STYLE, QC_STYLE, splitPlatforms } from './ticketUtils'
+import { CATEGORY_STYLE, STATUS_LABEL, STATUS_STYLE, PRIORITY_STYLE, splitPlatforms } from './ticketUtils'
 
 const pill = 'inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium'
 
-export function DevStatusBadge({ status }) {
-  return <span className={cn(pill, DEV_STATUS_STYLE[status])}>{DEV_STATUS_LABEL[status] || status}</span>
+export function StatusBadge({ status }) {
+  return <span className={cn(pill, STATUS_STYLE[status])}>{STATUS_LABEL[status] || status}</span>
 }
 
 export function PriorityBadge({ priority }) {
@@ -17,11 +17,7 @@ export function CategoryBadge({ category }) {
   return <span className={cn(pill, 'border bg-surface-card', CATEGORY_STYLE[category])}>{category}</span>
 }
 
-export function QCStatus({ status }) {
-  return <span className={cn('text-xs font-semibold', QC_STYLE[status])}>{status}</span>
-}
-
-const PLATFORM_ICON = { Android: Smartphone, iOS: Smartphone, Website: Globe, 'Web Admin': LayoutDashboard, Backend: Server }
+export const PLATFORM_ICON = { Android: Smartphone, iOS: Smartphone, Website: Globe, 'Web Admin': LayoutDashboard, Backend: Server }
 
 export function Platform({ platform }) {
   return (

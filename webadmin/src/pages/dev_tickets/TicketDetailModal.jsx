@@ -1,19 +1,19 @@
 import { useState } from 'react'
+import { formatDateTime } from '../../utils/date'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { format } from 'date-fns'
 import toast from 'react-hot-toast'
-import { Bot, Copy, Pencil, Send, Trash2, ArrowRightLeft, Terminal } from 'lucide-react'
+import { Bot, Copy, Pencil, Ticket, AlertCircle, CheckCircle2, ListOrdered, Send, Trash2, ArrowRightLeft, Terminal } from 'lucide-react'
 import Modal from '../../components/ui/Modal'
 import Button from '../../components/ui/Button'
 import Select from '../../components/ui/Select'
 import Textarea from '../../components/ui/Textarea'
 import Thumb from '../../components/ui/Thumb'
 import { getTicket, setTicketStatus, addTicketComment } from '../../api/devTickets'
-import { buildPrompt, copyText, dateOnly } from './ticketUtils'
-import { CategoryBadge, DevStatusBadge, Linkified, Platform, PriorityBadge, QCStatus } from './TicketBits'
+import { buildPrompt, copyText } from './ticketUtils'
+import { CategoryBadge, Linkified, Platform, PriorityBadge, StatusBadge } from './TicketBits'
 import { cn } from '../../utils/cn'
 
-const fmt = (iso) => format(new Date(iso), 'dd/MM/yyyy HH:mm')
+const fmt = formatDateTime
 
 function Section({ title, children }) {
   return (
@@ -21,6 +21,45 @@ function Section({ title, children }) {
       <p className="mb-1.5 text-xs font-medium uppercase tracking-[.05em] text-text-tertiary">{title}</p>
       {children}
     </div>
+  )
+}
+
+const TONES = {
+  danger: { bar: 'border-l-danger', icon: 'bg-danger-bg text-danger' },
+  info: { bar: 'border-l-info', icon: 'bg-info-bg text-info' },
+  success: { bar: 'border-l-success', icon: 'bg-success-bg text-success' },
+}
+
+// Titled card with a colored left edge and an icon chip.
+function DetailCard({ icon: Icon, title, tone, children }) {
+  const t = TONES[tone]
+  return (
+    <div className={cn('min-w-0 rounded-lg border border-l-4 border-surface-border bg-surface-card p-4', t.bar)}>
+      <p className="mb-2.5 flex items-center gap-2 text-xs font-semibold uppercase tracking-[.05em] text-text-secondary">
+        <span className={cn('flex h-6 w-6 items-center justify-center rounded-md', t.icon)}>
+          <Icon size={14} />
+        </span>
+        {title}
+      </p>
+      {children}
+    </div>
+  )
+}
+
+// "1. login\n2. buka users" → numbered steps; the typed numbering is replaced by the badges.
+function Steps({ text }) {
+  const lines = text.split('\n').map((l) => l.trim()).filter(Boolean)
+  return (
+    <ol className="space-y-2">
+      {lines.map((line, i) => (
+        <li key={i} className="flex items-start gap-2.5">
+          <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-info-bg text-[11px] font-bold text-info">
+            {i + 1}
+          </span>
+          <Linkified text={line.replace(/^\d+[.)]\s*/, '')} className="text-sm text-text-primary" />
+        </li>
+      ))}
+    </ol>
   )
 }
 
@@ -73,7 +112,7 @@ function TicketDetailModal({ number, onClose, meta, canEdit, canDelete, onEdit, 
   const claudeNote = t?.dev_by?.startsWith('Claude')
 
   return (
-    <Modal open={!!number} onClose={onClose} title={t ? `Tiket #${t.number}` : 'Tiket'} size="xl">
+    <Modal open={!!number} onClose={onClose} title={t ? `Tiket #${t.number}` : 'Tiket'} icon={Ticket} size="xl">
       {isLoading || !t ? (
         <div className="py-16 text-center text-sm text-text-tertiary">Memuat…</div>
       ) : (
@@ -83,24 +122,26 @@ function TicketDetailModal({ number, onClose, meta, canEdit, canDelete, onEdit, 
               <div className="mb-2 flex flex-wrap items-center gap-1.5">
                 <PriorityBadge priority={t.priority} />
                 <CategoryBadge category={t.category} />
-                <DevStatusBadge status={t.dev_status} />
+                <StatusBadge status={t.status} />
               </div>
               <h2 className="text-lg font-semibold text-text-primary">{t.module}</h2>
             </div>
 
-            <Linkified text={t.issue} className="rounded-lg border border-surface-border bg-surface-bg/60 px-4 py-3 text-sm leading-relaxed text-text-primary" />
+            <DetailCard icon={AlertCircle} title="Issue" tone="danger">
+              <Linkified text={t.issue} className="text-sm leading-relaxed text-text-primary" />
+            </DetailCard>
 
             {(t.steps || t.expected) && (
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid items-stretch gap-4 sm:grid-cols-2">
                 {t.steps && (
-                  <Section title="Langkah reproduksi">
-                    <Linkified text={t.steps} className="text-sm text-text-secondary" />
-                  </Section>
+                  <DetailCard icon={ListOrdered} title="Langkah reproduksi" tone="info">
+                    <Steps text={t.steps} />
+                  </DetailCard>
                 )}
                 {t.expected && (
-                  <Section title="Hasil yang diharapkan">
-                    <Linkified text={t.expected} className="text-sm text-text-secondary" />
-                  </Section>
+                  <DetailCard icon={CheckCircle2} title="Hasil yang diharapkan" tone="success">
+                    <Linkified text={t.expected} className="text-sm leading-relaxed text-text-primary" />
+                  </DetailCard>
                 )}
               </div>
             )}
@@ -125,12 +166,26 @@ function TicketDetailModal({ number, onClose, meta, canEdit, canDelete, onEdit, 
             )}
 
             <Section title="Timeline">
+              {canEdit && (
+                <div className="mb-4 flex items-stretch gap-2">
+                  <div className="flex-1">
+                    <Textarea
+                      rows={2}
+                      value={comment}
+                      onChange={(e) => setComment(e.target.value)}
+                      placeholder="Tulis komentar… (mis. hasil retest QC)"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && comment.trim()) addComment.mutate()
+                      }}
+                    />
+                  </div>
+                  <Button className="!h-auto" onClick={() => addComment.mutate()} disabled={!comment.trim() || addComment.isPending} aria-label="Kirim">
+                    <Send size={15} />
+                  </Button>
+                </div>
+              )}
               <ol className="relative space-y-3 border-l border-surface-border pl-4">
-                <li className="text-xs text-text-tertiary">
-                  <span className="absolute -left-[5px] mt-1 h-2.5 w-2.5 rounded-full bg-surface-border-hover" />
-                  {fmt(t.created_at)} · Dilaporkan oleh {t.reporter || '—'}
-                </li>
-                {comments.map((c) => (
+                {[...comments].reverse().map((c) => (
                   <li key={c.uuid}>
                     <span
                       className={cn(
@@ -149,25 +204,11 @@ function TicketDetailModal({ number, onClose, meta, canEdit, canDelete, onEdit, 
                     />
                   </li>
                 ))}
+                <li className="text-xs text-text-tertiary">
+                  <span className="absolute -left-[5px] mt-1 h-2.5 w-2.5 rounded-full bg-surface-border-hover" />
+                  {fmt(t.created_at)} · Dilaporkan oleh {t.reporter || '—'}
+                </li>
               </ol>
-              {canEdit && (
-                <div className="mt-4 flex items-end gap-2">
-                  <div className="flex-1">
-                    <Textarea
-                      rows={2}
-                      value={comment}
-                      onChange={(e) => setComment(e.target.value)}
-                      placeholder="Tulis komentar… (mis. hasil retest QC)"
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && comment.trim()) addComment.mutate()
-                      }}
-                    />
-                  </div>
-                  <Button onClick={() => addComment.mutate()} disabled={!comment.trim() || addComment.isPending} aria-label="Kirim">
-                    <Send size={15} />
-                  </Button>
-                </div>
-              )}
             </Section>
           </div>
 
@@ -188,39 +229,26 @@ function TicketDetailModal({ number, onClose, meta, canEdit, canDelete, onEdit, 
             {canEdit && meta && (
               <div className="space-y-3">
                 <Select
-                  label="Status development"
-                  value={t.dev_status}
+                  label="Status"
+                  value={t.status}
                   disabled={status.isPending}
-                  onChange={(e) => status.mutate({ dev_status: e.target.value })}
+                  onChange={(e) => status.mutate({ status: e.target.value })}
                 >
-                  {meta.dev_statuses.map((s) => (
+                  {meta.statuses.map((s) => (
                     <option key={s.value} value={s.value}>
                       {s.label}
                     </option>
-                  ))}
-                </Select>
-                <Select
-                  label="QC status"
-                  value={t.qc_status}
-                  disabled={status.isPending}
-                  onChange={(e) => status.mutate({ qc_status: e.target.value })}
-                >
-                  {meta.qc_statuses.map((s) => (
-                    <option key={s}>{s}</option>
                   ))}
                 </Select>
               </div>
             )}
 
             <div className="divide-y divide-surface-border rounded-lg border border-surface-border px-3">
-              <Row label="Tanggal">{dateOnly(t.reported_on).split('-').reverse().join('/')}</Row>
+              <Row label="Tanggal">{fmt(t.reported_on)}</Row>
               <Row label="Platform">
                 <Platform platform={t.platform} />
               </Row>
-              <Row label="Role">{t.role}</Row>
-              <Row label="QC">
-                <QCStatus status={t.qc_status} />
-              </Row>
+              <Row label="Role">{t.role || '—'}</Row>
               <Row label="Pelapor">{t.reporter || '—'}</Row>
               {t.dev_at && <Row label="Dev update">{fmt(t.dev_at)}</Row>}
             </div>

@@ -4,6 +4,7 @@ import (
 	"baseadmin/backend/modules/activity_logs"
 	"baseadmin/backend/storage"
 	"baseadmin/backend/utils"
+	"errors"
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
@@ -63,6 +64,10 @@ func (h *Handler) BulkUpdate(c *gin.Context) {
 	}
 
 	if err := h.Service.BulkUpdate(payload); err != nil {
+		if errors.Is(err, ErrInvalidPageSize) {
+			utils.Error(c, 400, err.Error())
+			return
+		}
 		utils.Error(c, 500, "failed to update settings")
 		return
 	}

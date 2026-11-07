@@ -1,11 +1,14 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import * as Icons from 'lucide-react'
-import { LayoutGrid, X, FileCode2 } from 'lucide-react'
+import { LayoutGrid, X, FileCode2, Sun, Moon, LogOut } from 'lucide-react'
+import toast from 'react-hot-toast'
 import { getMenus } from '../../api/menus'
 import useSidebarStore from '../../store/sidebarStore'
 import useSettingsStore from '../../store/settingsStore'
 import useAuthStore from '../../store/authStore'
+import useThemeStore from '../../store/themeStore'
+import { logout as logoutApi } from '../../api/auth'
 import usePermission from '../../hooks/usePermission'
 
 function iconFor(name) {
@@ -21,7 +24,23 @@ function Sidebar() {
   const close = useSidebarStore((s) => s.close)
   const appName = useSettingsStore((s) => s.appName)
   const isSuperadmin = useAuthStore((s) => !!s.user?.is_superadmin)
+  const user = useAuthStore((s) => s.user)
+  const logout = useAuthStore((s) => s.logout)
+  const theme = useThemeStore((s) => s.theme)
+  const toggleTheme = useThemeStore((s) => s.toggle)
+  const navigate = useNavigate()
   const { canView } = usePermission()
+
+  const handleLogout = async () => {
+    try {
+      await logoutApi()
+    } catch {
+      // ignore network failure on logout
+    }
+    logout()
+    toast.success('Logged out')
+    navigate('/login')
+  }
 
   const { data } = useQuery({
     queryKey: ['menus', 'tree'],
@@ -45,10 +64,43 @@ function Sidebar() {
         }`}
       >
         <div className="relative flex h-[60px] items-center justify-center border-b border-[rgb(var(--c-sidebar-border))] px-4">
-          <span className="mr-2 h-2 w-2 rounded-full bg-[rgb(var(--c-accent))] pulse-dot shadow-[0_0_10px_rgb(var(--c-accent))]" /><span className="truncate text-[17px] font-bold tracking-[-.02em] text-gradient">{appName}</span>
+          <span className="truncate text-[17px] font-bold tracking-[-.02em] text-gradient">{appName}</span>
           <button onClick={toggle} className="absolute right-4 text-text-secondary lg:hidden">
             <X size={20} />
           </button>
+        </div>
+        <div className="mx-3 mt-3 rounded-xl border border-[rgb(var(--c-sidebar-border))] bg-[rgb(var(--c-sidebar-hover))] p-2.5">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-white">
+              {(user?.name || 'U').charAt(0).toUpperCase()}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="break-words text-[13px] font-semibold leading-tight text-[rgb(var(--c-sidebar-title))]">
+                {user?.name || 'User'}
+              </div>
+              <div className="truncate text-[11px] text-[rgb(var(--c-sidebar-muted))]" title={user?.email}>
+                {user?.email}
+              </div>
+            </div>
+          </div>
+          <div className="mt-2.5 grid grid-cols-2 gap-1.5">
+            <button
+              onClick={toggleTheme}
+              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              className="flex h-8 items-center justify-center gap-1.5 rounded-lg bg-[rgb(var(--c-sidebar-border)/0.6)] text-xs font-medium text-sidebar-text transition-colors hover:bg-[rgb(var(--c-sidebar-border))] hover:text-[rgb(var(--c-sidebar-title))]"
+            >
+              {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
+              {theme === 'dark' ? 'Light' : 'Dark'}
+            </button>
+            <button
+              onClick={handleLogout}
+              aria-label="Logout"
+              className="flex h-8 items-center justify-center gap-1.5 rounded-lg bg-danger/10 text-xs font-medium text-danger transition-colors hover:bg-danger/20"
+            >
+              <LogOut size={14} />
+              Logout
+            </button>
+          </div>
         </div>
         <nav className="flex-1 overflow-y-auto px-3 py-3">
           {sections.map((section) => {

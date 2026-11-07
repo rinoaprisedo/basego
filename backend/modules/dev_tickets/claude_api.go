@@ -180,7 +180,7 @@ func (h *Handler) claudeStatus(c *gin.Context) {
 		utils.Error(c, 400, "body {status, note} wajib; status: "+strings.Join(ClaudeStatuses, "|"))
 		return
 	}
-	before, after, err := h.svc.SetStatus(t, "", in.Status, in.Note, claudeAuthor(c), true)
+	before, after, err := h.svc.SetStatus(t, in.Status, in.Note, claudeAuthor(c), true)
 	if err != nil {
 		respondErr(c, err, "gagal mengubah status")
 		return

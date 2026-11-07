@@ -7,6 +7,7 @@ import Skeleton from '../../components/ui/Skeleton'
 import { Menubar, MenubarAction, MenubarLabel, MenubarSeparator } from '../../components/ui/Menubar'
 import { getRole, getRolePermissions, updateRolePermissions } from '../../api/roles'
 import { getMenus } from '../../api/menus'
+import PageToolbar from '../../components/ui/PageToolbar'
 import usePageActions from '../../hooks/usePageActions'
 
 const fields = [
@@ -121,7 +122,9 @@ function RolePermissions() {
 
   return (
     <div className="space-y-4">
-      <div className="overflow-x-auto rounded-lg border border-surface-border bg-surface-card">
+      <div className="rounded-lg border border-surface-border bg-surface-card shadow-card">
+        <PageToolbar />
+        <div className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {isLoading ? (
           <div className="p-4 space-y-2">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -168,6 +171,7 @@ function RolePermissions() {
             </tbody>
           </table>
         )}
+        </div>
       </div>
     </div>
   )

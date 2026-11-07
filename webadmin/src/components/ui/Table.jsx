@@ -1,7 +1,8 @@
-import { ChevronUp, ChevronDown, Search, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import { TableSkeleton } from './Skeleton'
 import EmptyState from './EmptyState'
-import Input from './Input'
+import PageToolbar from './PageToolbar'
+import Select from './Select'
 
 // Builds a compact page list like [1, '…', 4, 5, 6, '…', 12] around the
 // current page, always keeping the first/last page visible.
@@ -46,6 +47,8 @@ function Table({
   onLimitChange,
   onRowClick,
 }) {
+  // Standard sizes plus whatever is active (e.g. a custom default from Settings).
+  const pageSizeOptions = [...new Set([10, 20, 25, 50, 100, limit])].sort((a, b) => a - b)
   const totalPages = Math.max(1, Math.ceil(total / limit))
 
   const handleSort = (col) => {
@@ -59,34 +62,22 @@ function Table({
 
   return (
     <div className="rounded-lg border border-surface-border bg-surface-card shadow-card">
-      {onSearchChange && (
-        <div className="border-b border-surface-border p-[14px_22px]">
-          <div className="relative max-w-xs">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary" />
-            <Input
-              value={search}
-              onChange={(e) => onSearchChange(e.target.value)}
-              placeholder="Search..."
-              className="h-9 pl-9 text-[13px]"
-            />
-          </div>
-        </div>
-      )}
+      <PageToolbar search={search} onSearchChange={onSearchChange} />
 
       {loading ? (
         <TableSkeleton cols={columns.length} />
       ) : data.length === 0 ? (
         <EmptyState title="No records found" />
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-[13px]">
+        <div className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <table className="w-full min-w-max text-left text-[13px] md:min-w-full">
             <thead>
               <tr className="border-b border-surface-border text-text-tertiary">
                 {columns.map((col) => (
                   <th
                     key={col.key}
                     onClick={() => handleSort(col)}
-                    className={`px-5 py-[11px] text-[11px] font-semibold uppercase tracking-[.07em] ${col.sortable ? 'cursor-pointer select-none' : ''}`}
+                    className={`whitespace-nowrap px-5 py-[11px] text-[11px] font-semibold uppercase tracking-[.07em] ${col.sortable ? 'cursor-pointer select-none' : ''}`}
                   >
                     <div className="flex items-center gap-1">
                       {col.label}
@@ -104,7 +95,7 @@ function Table({
                   className={`border-b border-surface-border transition-colors duration-100 last:border-0 ${onRowClick ? 'cursor-pointer hover:bg-surface-hover' : ''}`}
                 >
                   {columns.map((col) => (
-                    <td key={col.key} className="px-5 py-[13px] text-text-primary">
+                    <td key={col.key} className="whitespace-nowrap px-5 py-[13px] text-text-primary md:whitespace-normal">
                       {col.render ? col.render(row, i) : row[col.key]}
                     </td>
                   ))}
@@ -119,17 +110,21 @@ function Table({
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-surface-border p-4 text-[13px]">
           <div className="flex items-center gap-2 text-text-secondary">
             <span>Rows per page</span>
-            <select
-              value={limit}
-              onChange={(e) => onLimitChange?.(Number(e.target.value))}
-              className="rounded-md border border-surface-border bg-field px-2 py-1"
-            >
-              {[10, 20, 25, 50, 100].map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
+            <div className="w-[62px]">
+              <Select
+                compact
+                aria-label="Rows per page"
+                value={limit}
+                onChange={(e) => onLimitChange?.(Number(e.target.value))}
+                className="h-7 rounded-md border px-2 pr-6 text-xs"
+              >
+                {pageSizeOptions.map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </Select>
+            </div>
             <span>
               Page {page} of {totalPages} ({total} total)
             </span>

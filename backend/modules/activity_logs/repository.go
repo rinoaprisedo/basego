@@ -28,6 +28,7 @@ type ListFilter struct {
 	IPAddress string
 	DateFrom  string
 	DateTo    string
+	Search    string
 }
 
 func (r *Repository) List(p utils.Pagination, f ListFilter) ([]ActivityLog, int64, error) {
@@ -36,6 +37,14 @@ func (r *Repository) List(p utils.Pagination, f ListFilter) ([]ActivityLog, int6
 	if f.User != "" {
 		like := "%" + f.User + "%"
 		q = q.Joins("JOIN users ON users.id = activity_logs.user_id").Where("users.name LIKE ? OR users.email LIKE ?", like, like)
+	}
+	if f.Search != "" {
+		// Free-text search over the columns shown in the list; the user is
+		// matched through a subquery so it doesn't clash with the user filter's JOIN.
+		like := "%" + f.Search + "%"
+		q = q.Where(`activity_logs.action ILIKE ? OR activity_logs.module ILIKE ? OR activity_logs.record_id ILIKE ? OR activity_logs.ip_address ILIKE ?
+			OR activity_logs.user_id IN (SELECT id FROM users WHERE name ILIKE ? OR email ILIKE ?)`,
+			like, like, like, like, like, like)
 	}
 	if f.Module != "" {
 		q = q.Where("module = ?", f.Module)
@@ -96,4 +105,11 @@ func (r *Repository) UsersByID(ids []uint64) map[uint64]UserRef {
 		result[row.ID] = UserRef{UUID: row.UUID, Name: row.Name}
 	}
 	return result
+}
+
+// Modules returns the distinct module names present in the log, for the filter dropdown.
+func (r *Repository) Modules() ([]string, error) {
+	var modules []string
+	err := r.DB.Model(&ActivityLog{}).Where("module <> ''").Distinct().Order("module").Pluck("module", &modules).Error
+	return modules, err
 }

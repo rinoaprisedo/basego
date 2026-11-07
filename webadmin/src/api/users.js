@@ -24,3 +24,17 @@ export const exportUsersCsv = (params) =>
   client.get('/users/export/csv', { params, responseType: 'blob' }).then((r) => downloadFile(r.data, 'users.csv'))
 export const exportUsersExcel = (params) =>
   client.get('/users/export/excel', { params, responseType: 'blob' }).then((r) => downloadFile(r.data, 'users.xlsx'))
+
+// Bulk import: validate (background job, polled) → commit only when every row is valid.
+export const downloadUserImportTemplate = () =>
+  client.get('/users/import/template', { responseType: 'blob' }).then((r) => downloadFile(r.data, 'users_import_template.xlsx'))
+export const validateUserImport = (mode, file, fields, onUploadProgress) => {
+  const form = new FormData()
+  form.append('file', file)
+  fields.forEach((f) => form.append('fields', f))
+  return client
+    .post(`/users/import/${mode}/validate`, form, { headers: { 'Content-Type': 'multipart/form-data' }, onUploadProgress })
+    .then((r) => r.data.data)
+}
+export const getUserImportJob = (token) => client.get(`/users/import/jobs/${token}`).then((r) => r.data.data)
+export const commitUserImport = (mode, token) => client.post(`/users/import/${mode}/commit/${token}`).then((r) => r.data.data)

@@ -1,20 +1,12 @@
-import { useState } from 'react'
-import Tabs from '../../components/ui/Tabs'
 import MenuList from './MenuList'
-import SectionList from './SectionList'
 
-const tabs = ['Menus', 'Sections']
-
-// Menus and menu sections are one module: one sidebar entry and one
-// permission ("menus") cover both tabs.
+// Menus and their sections are managed together on one page: sections are
+// cards (drag to reorder), menus are rows inside them. One sidebar entry and
+// one permission ("menus") cover everything.
 function Menus() {
-  const [tab, setTab] = useState('Menus')
-
   return (
-    <div className="space-y-4">
-      <Tabs tabs={tabs} value={tab} onChange={setTab} />
-
-      {tab === 'Menus' ? <MenuList /> : <SectionList />}
+    <div className="w-full md:w-3/5 xl:w-2/5">
+      <MenuList />
     </div>
   )
 }

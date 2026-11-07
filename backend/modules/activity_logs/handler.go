@@ -24,6 +24,7 @@ func NewHandler(db *gorm.DB, cfg *config.Config) *Handler {
 // @Security		SessionCookie
 // @Param			page		query		int		false	"Page number"
 // @Param			limit		query		int		false	"Page size"
+// @Param			search		query		string	false	"Search action, module, record ID, IP or user"
 // @Param			user		query		string	false	"Filter by user name/email (partial match)"
 // @Param			module		query		string	false	"Filter by module"
 // @Param			action		query		string	false	"Filter by action"
@@ -41,6 +42,7 @@ func (h *Handler) List(c *gin.Context) {
 		IPAddress: c.Query("ip"),
 		DateFrom:  c.Query("date_from"),
 		DateTo:    c.Query("date_to"),
+		Search:    p.Search,
 	}
 	list, total, err := h.Service.List(p, f)
 	if err != nil {
@@ -48,6 +50,21 @@ func (h *Handler) List(c *gin.Context) {
 		return
 	}
 	utils.SuccessList(c, "ok", list, utils.BuildMeta(p.Page, p.Limit, total))
+}
+
+// Modules godoc
+// @Summary		List the distinct modules present in the activity log
+// @Tags			activity-logs
+// @Security		SessionCookie
+// @Success		200	{object}	utils.Response
+// @Router			/activity-logs/modules [get]
+func (h *Handler) Modules(c *gin.Context) {
+	modules, err := h.Service.Modules()
+	if err != nil {
+		utils.Error(c, 500, "failed to fetch modules")
+		return
+	}
+	utils.Success(c, 200, "ok", modules)
 }
 
 // Get godoc

@@ -3,14 +3,19 @@ import { getPublicSettings } from '../api/settings'
 import { fileURL } from '../utils/url'
 import { applyPrimaryColor, applySidebarColor } from '../utils/color'
 
-const DEFAULT_PRIMARY = '#35494d'
+import { DEFAULT_THEME } from '../utils/themes'
+
+const DEFAULT_PRIMARY = DEFAULT_THEME.primary
+const DEFAULT_SIDEBAR = DEFAULT_THEME.sidebar
 
 const useSettingsStore = create((set) => ({
   appName: 'BaseProject',
   logo: null,
   favicon: null,
   primaryColor: DEFAULT_PRIMARY,
-  sidebarColor: '',
+  sidebarColor: DEFAULT_SIDEBAR,
+  // Default rows per page for every list (Settings > General).
+  pageSize: 10,
   login: { badge: 'SECURE ACCESS', headline: 'Control everything from *one place.*', description: 'Manage users, roles, and system activity with a fast, secure admin console.' },
   // Assumed reachable until the first check completes, so we don't flash the
   // offline screen before fetchSettings has had a chance to run.
@@ -24,7 +29,7 @@ const useSettingsStore = create((set) => ({
       const map = res.data || {}
       const primaryColor = map.primary_color || DEFAULT_PRIMARY
       applyPrimaryColor(primaryColor)
-      const sidebarColor = map.sidebar_color || ''
+      const sidebarColor = map.sidebar_color || DEFAULT_SIDEBAR
       applySidebarColor(sidebarColor)
       set({
         appName: map.app_name || 'BaseProject',
@@ -32,6 +37,7 @@ const useSettingsStore = create((set) => ({
         favicon: fileURL(map.app_favicon),
         primaryColor,
         sidebarColor,
+        pageSize: Number(map.default_page_size) || 10,
         login: {
           badge: map.login_badge ?? 'SECURE ACCESS',
           headline: map.login_headline ?? 'Control everything from *one place.*',

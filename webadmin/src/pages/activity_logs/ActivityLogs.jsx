@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
+import { formatDateTime } from '../../utils/date'
 import { useQuery } from '@tanstack/react-query'
-import { format } from 'date-fns'
 import { Filter } from 'lucide-react'
 import Table from '../../components/ui/Table'
 import Badge from '../../components/ui/Badge'
@@ -9,14 +9,15 @@ import Input from '../../components/ui/Input'
 import Select from '../../components/ui/Select'
 import { Menubar, MenubarLabel, MenubarSeparator, MenubarMenu } from '../../components/ui/Menubar'
 import ActivityLogDetailModal from './ActivityLogDetailModal'
-import { getActivityLogs } from '../../api/activityLogs'
+import { getActivityLogs, getActivityLogModules } from '../../api/activityLogs'
+import useSettingsStore from '../../store/settingsStore'
 import usePageActions from '../../hooks/usePageActions'
 
 const actionVariant = { create: 'success', update: 'primary', delete: 'danger', login: 'success', logout: 'neutral', view: 'neutral' }
 
 function ActivityLogs() {
   const [page, setPage] = useState(1)
-  const [limit, setLimit] = useState(20)
+  const [limit, setLimit] = useState(() => useSettingsStore.getState().pageSize)
   const [search, setSearch] = useState('')
   const [module, setModule] = useState('')
   const [action, setAction] = useState('')
@@ -31,6 +32,13 @@ function ActivityLogs() {
   const [draftDateFrom, setDraftDateFrom] = useState('')
   const [draftDateTo, setDraftDateTo] = useState('')
   const [selected, setSelected] = useState(null)
+
+  const { data: modulesData } = useQuery({
+    queryKey: ['activity-logs', 'modules'],
+    queryFn: getActivityLogModules,
+    staleTime: 60 * 1000,
+  })
+  const modules = modulesData?.data || []
 
   const { data, isLoading } = useQuery({
     queryKey: ['activity-logs', { page, limit, search, module, action, user, ip, dateFrom, dateTo }],
@@ -52,7 +60,7 @@ function ActivityLogs() {
     {
       key: 'created_at',
       label: 'Time',
-      render: (row) => (row.created_at ? format(new Date(row.created_at), 'PP p') : '-'),
+      render: (row) => (formatDateTime(row.created_at) || '-'),
     },
     { key: 'user', label: 'User', render: (row) => row.user?.name || 'System' },
     {
@@ -89,12 +97,14 @@ function ActivityLogs() {
                       </option>
                     ))}
                   </Select>
-                  <Input
-                    label="Module"
-                    value={draftModule}
-                    onChange={(e) => setDraftModule(e.target.value)}
-                    placeholder="e.g. users"
-                  />
+                  <Select label="Module" value={draftModule} onChange={(e) => setDraftModule(e.target.value)}>
+                    <option value="">All</option>
+                    {modules.map((m) => (
+                      <option key={m} value={m}>
+                        {m}
+                      </option>
+                    ))}
+                  </Select>
                   <Input
                     label="User"
                     value={draftUser}
@@ -164,7 +174,7 @@ function ActivityLogs() {
           </MenubarMenu>
         </Menubar>
       ),
-      [action, module, user, ip, dateFrom, dateTo, draftAction, draftModule, draftUser, draftIp, draftDateFrom, draftDateTo],
+      [action, module, user, ip, dateFrom, dateTo, draftAction, draftModule, draftUser, draftIp, draftDateFrom, draftDateTo, modules],
     ),
   )
 

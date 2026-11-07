@@ -125,8 +125,6 @@ body {
   color: #e6edf7;
 }
 
-@keyframes pulse-dot { 0%,100% { opacity: 1; transform: scale(1) } 50% { opacity: .4; transform: scale(1.6) } }
-.pulse-dot { animation: pulse-dot 1.8s ease-in-out infinite; }
 @keyframes rise { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: none } }
 .rise { animation: rise .45s ease both; }
 
@@ -139,4 +137,19 @@ body {
 ::-webkit-scrollbar-thumb {
   background: rgb(var(--c-border-hover));
   border-radius: 4px;
+}
+
+/* ---- Modal ---- */
+@keyframes modal-overlay-in { from { opacity: 0 } to { opacity: 1 } }
+@keyframes modal-pop-in {
+  from { opacity: 0; transform: translateY(12px) scale(.97) }
+  to { opacity: 1; transform: none }
+}
+.modal-overlay { animation: modal-overlay-in .18s ease-out; }
+.modal-panel {
+  box-shadow: 0 24px 60px -18px rgb(0 0 0 / 0.35);
+  animation: modal-pop-in .22s cubic-bezier(.2, .8, .2, 1);
+}
+.modal-hero {
+  background: rgb(var(--c-accent));
 }

@@ -75,3 +75,7 @@ func (s *Service) attachUsers(list []ActivityLog) []LogWithUser {
 func (s *Service) Cleanup(retentionDays int) (int64, error) {
 	return CleanupOld(retentionDays)
 }
+
+func (s *Service) Modules() ([]string, error) {
+	return s.repo.Modules()
+}

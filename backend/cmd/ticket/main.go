@@ -1,7 +1,7 @@
 // Command ticket lets a Claude Code session read QC tickets from the admin
 // "Tiket" menu and report progress back, over the bearer-token /dev-api.
 //
-//	go run ./cmd/ticket list [-status todo,in_progress] [-platform Android] [-priority High] [-search text] [-all]
+//	go run ./cmd/ticket list [-status open,in_progress] [-platform Android] [-priority High] [-search text] [-all]
 //	go run ./cmd/ticket show 12
 //	go run ./cmd/ticket start 12 ["note"]
 //	go run ./cmd/ticket done 12 "what changed + how to test"   (or "-" to read the note from stdin)
@@ -41,8 +41,7 @@ type ticket struct {
 	Attachments []string `json:"attachments"`
 	Priority    string   `json:"priority"`
 	Category    string   `json:"category"`
-	QCStatus    string   `json:"qc_status"`
-	DevStatus   string   `json:"dev_status"`
+	Status      string   `json:"status"`
 	DevNote     string   `json:"dev_note"`
 	DevBy       string   `json:"dev_by"`
 	Reporter    string   `json:"reporter"`
@@ -80,7 +79,7 @@ func main() {
 	case "start":
 		setStatus(number(args), "in_progress", noteArg(args, false))
 	case "done":
-		setStatus(number(args), "done_by_claude", noteArg(args, true))
+		setStatus(number(args), "done_dev", noteArg(args, true))
 	case "ask", "info":
 		setStatus(number(args), "need_info", noteArg(args, true))
 	case "comment":
@@ -200,13 +199,13 @@ func call(method, path string, body interface{}, out interface{}) *envelope {
 }
 
 var statusLabels = map[string]string{
-	"todo": "To Do", "in_progress": "In Progress", "need_info": "Butuh Info",
-	"done_by_claude": "Done by Claude", "done": "Done", "wont_fix": "Won't Fix",
+	"open": "Open", "in_progress": "In Progress", "need_info": "Need Info",
+	"done_dev": "Done Dev", "deployed": "Deployed", "closed": "Closed", "reopen": "Re Open",
 }
 
 func list(args []string) {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
-	status := fs.String("status", "todo,in_progress", "comma-separated dev statuses")
+	status := fs.String("status", "open,reopen,in_progress", "comma-separated statuses")
 	all := fs.Bool("all", false, "every status")
 	platform := fs.String("platform", "", "Android|iOS|Website|Web Admin|Backend")
 	priority := fs.String("priority", "", "Low|Medium|High|Critical")
@@ -217,7 +216,7 @@ func list(args []string) {
 
 	q := url.Values{"limit": {fmt.Sprint(*limit)}, "sort_by": {"priority"}, "sort_dir": {"desc"}}
 	if !*all {
-		q.Set("dev_status", *status)
+		q.Set("status", *status)
 	}
 	for k, v := range map[string]string{"platform": *platform, "priority": *priority, "category": *category, "search": *search} {
 		if v != "" {
@@ -235,7 +234,7 @@ func list(args []string) {
 		if r := []rune(issue); len(r) > 110 {
 			issue = string(r[:110]) + "…"
 		}
-		fmt.Printf("#%-4d %-8s %-11s %-9s %-14s [%s] %s — %s\n", t.Number, t.Priority, t.Category, t.Platform, statusLabels[t.DevStatus], t.QCStatus, t.Module, issue)
+		fmt.Printf("#%-4d %-8s %-11s %-9s %-12s %s — %s\n", t.Number, t.Priority, t.Category, t.Platform, statusLabels[t.Status], t.Module, issue)
 	}
 	if env.Meta != nil && env.Meta.Total > int64(len(list)) {
 		fmt.Printf("… %d dari %d tiket ditampilkan\n", len(list), env.Meta.Total)
@@ -250,8 +249,8 @@ func show(n string) {
 	call("GET", "/dev-api/tickets/"+n, nil, &res)
 	t := res.Ticket
 	fmt.Printf("# Tiket #%d — %s (%s)\n\n", t.Number, t.Module, t.Category)
-	fmt.Printf("- Tanggal: %s\n- Platform: %s\n- Role: %s\n- Modul: %s\n- Priority: %s\n- Category: %s\n- QC status: %s\n- Status development: %s\n- Pelapor: %s\n\n",
-		t.ReportedOn[:min(10, len(t.ReportedOn))], t.Platform, t.Role, t.Module, t.Priority, t.Category, t.QCStatus, statusLabels[t.DevStatus], t.Reporter)
+	fmt.Printf("- Tanggal: %s\n- Platform: %s\n- Role: %s\n- Modul: %s\n- Priority: %s\n- Category: %s\n- Status: %s\n- Pelapor: %s\n\n",
+		strings.Replace(t.ReportedOn[:min(16, len(t.ReportedOn))], "T", " ", 1), t.Platform, t.Role, t.Module, t.Priority, t.Category, statusLabels[t.Status], t.Reporter)
 	fmt.Printf("## Issue\n%s\n\n", t.Issue)
 	if t.Steps != "" {
 		fmt.Printf("## Langkah reproduksi\n%s\n\n", t.Steps)
@@ -307,5 +306,5 @@ func download(path, dst string) error {
 func setStatus(n, status, note string) {
 	var t ticket
 	call("POST", fmt.Sprintf("/dev-api/tickets/%s/status", n), map[string]string{"status": status, "note": note}, &t)
-	fmt.Printf("Tiket #%d → %s\n", t.Number, statusLabels[t.DevStatus])
+	fmt.Printf("Tiket #%d → %s\n", t.Number, statusLabels[t.Status])
 }

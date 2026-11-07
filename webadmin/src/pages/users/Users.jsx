@@ -1,19 +1,21 @@
 import { useState, useMemo } from 'react'
+import { formatDateTime } from '../../utils/date'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { Plus, Pencil, Trash2, MoreHorizontal, FileSpreadsheet, FileText, Filter } from 'lucide-react'
-import { format } from 'date-fns'
+import { Plus, Pencil, Trash2, FileSpreadsheet, FileText, Filter, Upload } from 'lucide-react'
 import Table from '../../components/ui/Table'
 import Button from '../../components/ui/Button'
 import Badge from '../../components/ui/Badge'
-import { Menubar, MenubarAction, MenubarMenu, MenubarItem, MenubarLabel, MenubarSeparator } from '../../components/ui/Menubar'
+import { Menubar, MenubarAction, MenubarMenu, MenubarLabel, MenubarSeparator } from '../../components/ui/Menubar'
 import Select from '../../components/ui/Select'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import UserFormModal from './UserFormModal'
+import UserImportModal from './UserImportModal'
 import { getUsers, createUser, updateUser, deleteUser, exportUsersCsv, exportUsersExcel } from '../../api/users'
 import { getRoles } from '../../api/roles'
 import useAuthStore from '../../store/authStore'
 import usePermission from '../../hooks/usePermission'
+import useSettingsStore from '../../store/settingsStore'
 import usePageActions from '../../hooks/usePageActions'
 
 const statusVariant = { active: 'success', inactive: 'neutral', suspended: 'danger' }
@@ -23,7 +25,8 @@ function Users() {
   const currentUser = useAuthStore((s) => s.user)
   const queryClient = useQueryClient()
   const [page, setPage] = useState(1)
-  const [limit, setLimit] = useState(10)
+  const [limit, setLimit] = useState(() => useSettingsStore.getState().pageSize)
+  const [importOpen, setImportOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [sortBy, setSortBy] = useState('created_at')
   const [sortDir, setSortDir] = useState('desc')
@@ -98,27 +101,27 @@ function Users() {
       key: 'last_login_at',
       label: 'Last Login',
       sortable: true,
-      render: (row) => (row.last_login_at ? format(new Date(row.last_login_at), 'PP p') : 'Never'),
+      render: (row) => (formatDateTime(row.last_login_at) || 'Never'),
     },
     {
       key: 'actions',
       label: '',
       render: (row) => (
-        <div className="flex justify-end gap-1">
+        <div className="flex justify-end gap-1.5">
           {canEdit('users') && (
             <button
               onClick={() => {
                 setEditing(row)
                 setFormOpen(true)
               }}
-              className="rounded p-1.5 hover:bg-surface-hover"
+              className="rounded-md border border-surface-border p-1.5 hover:bg-surface-hover"
               title="Edit"
             >
               <Pencil size={16} />
             </button>
           )}
           {canDelete('users') && row.uuid !== currentUser?.uuid && (
-            <button onClick={() => setDeleting(row)} className="rounded p-1.5 text-danger hover:bg-danger/10" title="Delete">
+            <button onClick={() => setDeleting(row)} className="rounded-md border border-danger/30 p-1.5 text-danger hover:bg-danger/10" title="Delete">
               <Trash2 size={16} />
             </button>
           )}
@@ -193,34 +196,35 @@ function Users() {
                 </div>
               )}
             </MenubarMenu>
-            <MenubarMenu id="others" label="Others" icon={MoreHorizontal} align="right">
-              <MenubarItem
-                label="Export Excel"
-                icon={FileSpreadsheet}
-                onClick={() =>
-                  toast.promise(exportUsersExcel({ search, status, role: roleFilter }), {
-                    loading: 'Exporting...',
-                    success: 'Excel file downloaded',
-                    error: 'Export failed',
-                  })
-                }
-              />
-              <MenubarItem
-                label="Export CSV"
-                icon={FileText}
-                onClick={() =>
-                  toast.promise(exportUsersCsv({ search, status, role: roleFilter }), {
-                    loading: 'Exporting...',
-                    success: 'CSV file downloaded',
-                    error: 'Export failed',
-                  })
-                }
-              />
-            </MenubarMenu>
+            {(canCreate('users') || canEdit('users')) && (
+              <MenubarAction label="Import" icon={Upload} onClick={() => setImportOpen(true)} />
+            )}
+            <MenubarAction
+              label="Export Excel"
+              icon={FileSpreadsheet}
+              onClick={() =>
+                toast.promise(exportUsersExcel({ search, status, role: roleFilter }), {
+                  loading: 'Exporting...',
+                  success: 'Excel file downloaded',
+                  error: 'Export failed',
+                })
+              }
+            />
+            <MenubarAction
+              label="Export CSV"
+              icon={FileText}
+              onClick={() =>
+                toast.promise(exportUsersCsv({ search, status, role: roleFilter }), {
+                  loading: 'Exporting...',
+                  success: 'CSV file downloaded',
+                  error: 'Export failed',
+                })
+              }
+            />
           </Menubar>
         </div>
       ),
-      [canCreate, status, roleFilter, draftStatus, draftRole, rolesData, search],
+      [canCreate, canEdit, status, roleFilter, draftStatus, draftRole, rolesData, search],
     ),
   )
 
@@ -249,6 +253,13 @@ function Users() {
           setLimit(l)
           setPage(1)
         }}
+      />
+
+      <UserImportModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        canInsert={canCreate('users')}
+        canUpdate={canEdit('users')}
       />
 
       <UserFormModal

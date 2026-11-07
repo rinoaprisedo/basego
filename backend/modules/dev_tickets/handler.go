@@ -82,11 +82,11 @@ func (h *Handler) find(c *gin.Context) *Ticket {
 func listFilter(c *gin.Context) ListFilter {
 	f := ListFilter{
 		Platform: c.Query("platform"), Role: c.Query("role"), Priority: c.Query("priority"),
-		Category: c.Query("category"), QCStatus: c.Query("qc_status"), Module: c.Query("module"),
+		Category: c.Query("category"), Module: c.Query("module"),
 	}
-	for _, s := range strings.Split(c.Query("dev_status"), ",") {
+	for _, s := range strings.Split(c.Query("status"), ",") {
 		if s = strings.TrimSpace(s); s != "" {
-			f.DevStatus = append(f.DevStatus, s)
+			f.Status = append(f.Status, s)
 		}
 	}
 	return f
@@ -101,13 +101,13 @@ func meta(svc *Service) (gin.H, error) {
 	if err != nil {
 		return nil, err
 	}
-	statuses := make([]gin.H, 0, len(DevStatuses))
-	for _, s := range DevStatuses {
-		statuses = append(statuses, gin.H{"value": s, "label": DevStatusLabels[s]})
+	statuses := make([]gin.H, 0, len(Statuses))
+	for _, s := range Statuses {
+		statuses = append(statuses, gin.H{"value": s, "label": StatusLabels[s]})
 	}
 	return gin.H{
 		"platforms": Platforms, "roles": Roles, "priorities": Priorities, "categories": Categories,
-		"qc_statuses": QCStatuses, "dev_statuses": statuses, "claude_statuses": ClaudeStatuses,
+		"statuses": statuses, "claude_statuses": ClaudeStatuses,
 		"modules": modules, "counts": counts,
 	}, nil
 }
@@ -132,11 +132,10 @@ func (h *Handler) Meta(c *gin.Context) {
 // @Tags			dev-tickets
 // @Security		SessionCookie
 // @Param			search		query	string	false	"Ticket number (12, #12) or text"
-// @Param			dev_status	query	string	false	"Comma-separated: todo,in_progress,need_info,done_by_claude,done,wont_fix"
+// @Param			status		query	string	false	"Comma-separated: open,in_progress,need_info,done_dev,deployed,closed,reopen"
 // @Param			platform	query	string	false	"Platform"
 // @Param			priority	query	string	false	"Priority"
 // @Param			category	query	string	false	"Category"
-// @Param			qc_status	query	string	false	"Open|Reopen|Closed"
 // @Param			sort_by		query	string	false	"number|reported_on|priority|module|updated_at"
 // @Success		200	{object}	utils.Response
 // @Router			/dev-tickets [get]
@@ -271,17 +270,16 @@ func (h *Handler) Update(c *gin.Context) {
 }
 
 type StatusInput struct {
-	QCStatus  string `json:"qc_status"`
-	DevStatus string `json:"dev_status"`
-	Note      string `json:"note"`
+	Status string `json:"status"`
+	Note   string `json:"note"`
 }
 
 // SetStatus godoc
-// @Summary		Change QC and/or development status of a ticket
+// @Summary		Change the status of a ticket
 // @Tags			dev-tickets
 // @Security		SessionCookie
 // @Param			number	path	int			true	"Ticket number"
-// @Param			body	body	StatusInput	true	"Empty fields stay unchanged"
+// @Param			body	body	StatusInput	true	"Empty status stays unchanged"
 // @Success		200	{object}	utils.Response
 // @Router			/dev-tickets/{number}/status [patch]
 func (h *Handler) SetStatus(c *gin.Context) {
@@ -294,7 +292,7 @@ func (h *Handler) SetStatus(c *gin.Context) {
 		utils.Error(c, 400, "invalid request payload")
 		return
 	}
-	before, after, err := h.svc.SetStatus(t, in.QCStatus, in.DevStatus, in.Note, h.actorName(c), false)
+	before, after, err := h.svc.SetStatus(t, in.Status, in.Note, h.actorName(c), false)
 	if err != nil {
 		respondErr(c, err, "gagal mengubah status")
 		return

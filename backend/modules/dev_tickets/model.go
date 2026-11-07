@@ -14,39 +14,41 @@ var (
 	Roles      = []string{"User", "Admin", "Super Admin", "Guest"}
 	Priorities = []string{"Low", "Medium", "High", "Critical"}
 	Categories = []string{"Bug", "Request", "Improvement"}
-	QCStatuses = []string{"Open", "Reopen", "Closed"}
 )
 
+// A ticket has a single status. The order is the display order.
 const (
-	DevTodo         = "todo"
-	DevInProgress   = "in_progress"
-	DevNeedInfo     = "need_info"
-	DevDoneByClaude = "done_by_claude"
-	DevDone         = "done"
-	DevWontFix      = "wont_fix"
+	StatusOpen       = "open"
+	StatusInProgress = "in_progress"
+	StatusNeedInfo   = "need_info"
+	StatusDoneDev    = "done_dev"
+	StatusDeployed   = "deployed"
+	StatusClosed     = "closed"
+	StatusReopen     = "reopen"
 )
 
-var DevStatuses = []string{DevTodo, DevInProgress, DevNeedInfo, DevDoneByClaude, DevDone, DevWontFix}
+var Statuses = []string{StatusOpen, StatusInProgress, StatusNeedInfo, StatusDoneDev, StatusDeployed, StatusClosed, StatusReopen}
 
-var DevStatusLabels = map[string]string{
-	DevTodo:         "To Do",
-	DevInProgress:   "In Progress",
-	DevNeedInfo:     "Butuh Info",
-	DevDoneByClaude: "Done by Claude",
-	DevDone:         "Done",
-	DevWontFix:      "Won't Fix",
+var StatusLabels = map[string]string{
+	StatusOpen:       "Open",
+	StatusInProgress: "In Progress",
+	StatusNeedInfo:   "Need Info",
+	StatusDoneDev:    "Done Dev",
+	StatusDeployed:   "Deployed",
+	StatusClosed:     "Closed",
+	StatusReopen:     "Re Open",
 }
 
-// Claude may only move a ticket through its own work; "done" (verified) and
-// "wont_fix" stay human decisions.
-var ClaudeStatuses = []string{DevInProgress, DevNeedInfo, DevDoneByClaude}
+// Claude may only move a ticket through its own work; deploying, closing and
+// reopening stay human decisions.
+var ClaudeStatuses = []string{StatusInProgress, StatusNeedInfo, StatusDoneDev}
 
 // Ticket is one QC finding (bug or request). Its number is the primary key,
 // which is what people refer to ("tiket 12").
 type Ticket struct {
 	ID          uint64         `gorm:"primaryKey;autoIncrement" json:"number"`
 	UUID        uuid.UUID      `gorm:"type:uuid;uniqueIndex;not null" json:"uuid"`
-	ReportedOn  time.Time      `gorm:"type:date;not null;index" json:"reported_on"`
+	ReportedOn  time.Time      `gorm:"type:timestamptz;not null;index" json:"reported_on"`
 	Platform    string         `gorm:"type:varchar(60);not null;index" json:"platform"` // "Android, iOS", see normalizePlatforms
 	Role        string         `gorm:"type:varchar(20);not null" json:"role"`
 	Module      string         `gorm:"type:varchar(120);not null" json:"module"`
@@ -56,8 +58,7 @@ type Ticket struct {
 	Attachments []string       `gorm:"type:text;serializer:json" json:"attachments"`
 	Priority    string         `gorm:"type:varchar(10);not null;index" json:"priority"`
 	Category    string         `gorm:"type:varchar(20);not null;index" json:"category"`
-	QCStatus    string         `gorm:"type:varchar(10);not null;index" json:"qc_status"`
-	DevStatus   string         `gorm:"type:varchar(20);not null;index" json:"dev_status"`
+	Status      string         `gorm:"type:varchar(20);not null;index" json:"status"`
 	DevNote     string         `gorm:"type:text" json:"dev_note"`
 	DevBy       string         `gorm:"type:varchar(100)" json:"dev_by"`
 	DevAt       *time.Time     `json:"dev_at"`

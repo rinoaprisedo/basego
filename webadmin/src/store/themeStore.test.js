@@ -55,8 +55,10 @@ describe('themeStore', () => {
     expect(store.getState().theme).toBe('light')
   })
 
-  it('uses a lighter brand shade in dark mode so the default dark teal stays visible', async () => {
+  it('uses a lighter brand shade in dark mode so a dark brand color stays visible', async () => {
     const store = await freshStore()
+    const { default: useSettingsStore } = await import('./settingsStore')
+    useSettingsStore.setState({ primaryColor: '#35494d' }) // dark teal
     const root = document.documentElement
     store.getState().setTheme('light')
     const light = root.style.getPropertyValue('--color-primary-rgb')

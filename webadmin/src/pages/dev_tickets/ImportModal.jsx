@@ -1,3 +1,4 @@
+import { FileSpreadsheet } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
@@ -5,7 +6,7 @@ import Modal from '../../components/ui/Modal'
 import Button from '../../components/ui/Button'
 import Textarea from '../../components/ui/Textarea'
 import { importTickets } from '../../api/devTickets'
-import { rowsFromSheet } from './ticketUtils'
+import { rowsFromSheet, STATUS_LABEL } from './ticketUtils'
 import { CategoryBadge, PriorityBadge } from './TicketBits'
 
 function ImportModal({ open, onClose, meta }) {
@@ -31,11 +32,11 @@ function ImportModal({ open, onClose, meta }) {
   })
 
   return (
-    <Modal open={open} onClose={close} title="Import dari spreadsheet QC" size="xl">
+    <Modal open={open} onClose={close} title="Import dari spreadsheet QC" icon={FileSpreadsheet} size="xl">
       <div className="space-y-4">
         <p className="text-sm text-text-secondary">
           Di Google Sheets, blok baris tiket (boleh termasuk header) lalu salin dan tempel di bawah. Urutan kolom:{' '}
-          <span className="font-medium text-text-primary">Date · Platform · Role · Modul · Issue · Priority · Category · QC Status</span>.
+          <span className="font-medium text-text-primary">Date · Platform · Role · Modul · Issue · Priority · Category · Status</span>.
         </p>
         {!meta && (
           <p className="rounded-md bg-danger-bg px-3 py-2 text-xs text-danger">
@@ -54,7 +55,7 @@ function ImportModal({ open, onClose, meta }) {
             <table className="w-full text-left text-xs">
               <thead className="sticky top-0 bg-surface-bg text-text-tertiary">
                 <tr>
-                  {['Tanggal', 'Platform', 'Role', 'Modul', 'Issue', 'Priority', 'Category', 'QC'].map((h) => (
+                  {['Tanggal', 'Platform', 'Role', 'Modul', 'Issue', 'Priority', 'Category', 'Status'].map((h) => (
                     <th key={h} className="px-3 py-2 font-medium">
                       {h}
                     </th>
@@ -77,7 +78,7 @@ function ImportModal({ open, onClose, meta }) {
                     <td className="px-3 py-2">
                       <CategoryBadge category={row.category} />
                     </td>
-                    <td className="px-3 py-2">{row.qc_status}</td>
+                    <td className="px-3 py-2">{STATUS_LABEL[row.status] || row.status}</td>
                   </tr>
                 ))}
               </tbody>

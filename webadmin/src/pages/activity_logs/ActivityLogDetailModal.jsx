@@ -1,3 +1,4 @@
+import { ScrollText } from 'lucide-react'
 import Modal from '../../components/ui/Modal'
 
 // old_value/new_value come from the API as JSON-encoded strings (the
@@ -27,7 +28,7 @@ function JsonBlock({ value }) {
 
 function ActivityLogDetailModal({ open, onClose, log }) {
   return (
-    <Modal open={open} onClose={onClose} title="Activity Log Detail" size="xl">
+    <Modal open={open} onClose={onClose} title="Activity Log Detail" icon={ScrollText} size="xl">
       {log && (
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">

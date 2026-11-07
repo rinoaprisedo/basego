@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+
 import { useQuery } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import { getVersion } from '../../api/system'
@@ -39,7 +40,7 @@ function Footer() {
           <span>Load Api {apiLoadTime ?? '-'}ms</span>
         </div>
       </div>
-      <span className="order-1 sm:order-3 sm:flex-1 sm:text-right">{format(now, 'PP HH:mm:ss')}</span>
+      <span className="order-1 sm:order-3 sm:flex-1 sm:text-right">{format(now, 'd MMM yy HH:mm:ss')}</span>
     </footer>
   )
 }

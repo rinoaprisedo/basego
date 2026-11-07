@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { formatDateTime } from '../../utils/date'
 import { format } from 'date-fns'
 import { Users, ShieldCheck, Activity, Ticket, Cpu, Server, Database, Zap } from 'lucide-react'
 import { getUsers } from '../../api/users'
@@ -55,7 +56,7 @@ function Dashboard() {
         <div className="relative flex flex-wrap items-end justify-between gap-4">
           <div>
             <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1 font-mono text-[11px] text-white/90">
-              <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-[rgb(var(--c-accent))]" /> SYSTEM ONLINE
+              <span className="h-1.5 w-1.5 rounded-full bg-[rgb(var(--c-accent))]" /> SYSTEM ONLINE
             </div>
             <h1 className="text-[28px] font-bold tracking-tight">
               {greet}, <span className="text-gradient">{user?.name || 'Admin'}</span>
@@ -63,7 +64,7 @@ function Dashboard() {
             <p className="mt-1 text-[14px] text-slate-300">Welcome to {appName} control center.</p>
           </div>
           <div className="text-right font-mono text-[12px] text-slate-300">
-            <div>{format(new Date(), 'EEEE, dd MMM yyyy')}</div>
+            <div>{format(new Date(), 'EEEE, d MMM yy')}</div>
             <div className="text-gradient">BE {ver.data?.data?.backend_version || ver.data?.backend_version || 'v1'}</div>
           </div>
         </div>
@@ -93,7 +94,7 @@ function Dashboard() {
                   </span>
                 </div>
                 <span className="shrink-0 font-mono text-[11px] text-text-tertiary">
-                  {l.created_at ? format(new Date(l.created_at), 'dd MMM HH:mm') : ''}
+                  {formatDateTime(l.created_at)}
                 </span>
               </li>
             ))}
@@ -112,7 +113,7 @@ function Dashboard() {
               <li key={name} className="flex items-center justify-between rounded-lg border border-surface-border/70 bg-surface-bg/40 px-3 py-2.5 text-[13px]">
                 <span className="flex items-center gap-2.5"><Icon size={15} className="text-text-secondary" />{name}</span>
                 <span className={`flex items-center gap-1.5 font-mono text-[11px] ${ok ? 'text-success' : 'text-danger'}`}>
-                  <span className={`pulse-dot h-1.5 w-1.5 rounded-full ${ok ? 'bg-success' : 'bg-danger'}`} />
+                  <span className={`h-1.5 w-1.5 rounded-full ${ok ? 'bg-success' : 'bg-danger'}`} />
                   {ok ? 'OPERATIONAL' : 'DOWN'}
                 </span>
               </li>

@@ -10,6 +10,7 @@ import { Menubar, MenubarAction, MenubarLabel, MenubarSeparator } from '../../co
 import RoleFormModal from './RoleFormModal'
 import { getRoles, createRole, updateRole, deleteRole } from '../../api/roles'
 import usePermission from '../../hooks/usePermission'
+import useSettingsStore from '../../store/settingsStore'
 import usePageActions from '../../hooks/usePageActions'
 
 function Roles() {
@@ -17,7 +18,7 @@ function Roles() {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const [page, setPage] = useState(1)
-  const [limit, setLimit] = useState(10)
+  const [limit, setLimit] = useState(() => useSettingsStore.getState().pageSize)
   const [search, setSearch] = useState('')
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState(null)
@@ -65,11 +66,11 @@ function Roles() {
       key: 'actions',
       label: '',
       render: (row) => (
-        <div className="flex justify-end gap-1">
+        <div className="flex justify-end gap-1.5">
           {!row.is_superadmin && (
             <button
               onClick={() => navigate(`/roles/${row.uuid}/permissions`)}
-              className="rounded p-1.5 hover:bg-surface-hover"
+              className="rounded-md border border-surface-border p-1.5 hover:bg-surface-hover"
               title="Permissions"
             >
               <ShieldCheck size={16} />
@@ -81,14 +82,14 @@ function Roles() {
                 setEditing(row)
                 setFormOpen(true)
               }}
-              className="rounded p-1.5 hover:bg-surface-hover"
+              className="rounded-md border border-surface-border p-1.5 hover:bg-surface-hover"
               title="Edit"
             >
               <Pencil size={16} />
             </button>
           )}
           {canDelete('roles') && !row.is_superadmin && (
-            <button onClick={() => setDeleting(row)} className="rounded p-1.5 text-danger hover:bg-danger/10" title="Delete">
+            <button onClick={() => setDeleting(row)} className="rounded-md border border-danger/30 p-1.5 text-danger hover:bg-danger/10" title="Delete">
               <Trash2 size={16} />
             </button>
           )}

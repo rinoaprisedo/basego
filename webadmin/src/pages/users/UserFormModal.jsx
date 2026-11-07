@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { UserPlus, UserCog } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import Modal from '../../components/ui/Modal'
@@ -32,7 +33,10 @@ function UserFormModal({ open, onClose, onSubmit, initialData, roles = [], loadi
   }, [open, initialData, reset])
 
   return (
-    <Modal open={open} onClose={onClose} title={initialData ? 'Edit User' : 'Add User'}>
+    <Modal open={open} onClose={onClose} title={initialData ? 'Edit User' : 'Add User'}
+      description={initialData ? 'Update account details and access.' : 'Create an account and assign a role.'}
+      icon={initialData ? UserCog : UserPlus}
+    >
       <form className="flex flex-col gap-4" onSubmit={handleSubmit(onSubmit)}>
         <Input label="Name" error={errors.name?.message} {...register('name')} />
         <Input label="Email" type="email" error={errors.email?.message} {...register('email')} />
@@ -42,6 +46,7 @@ function UserFormModal({ open, onClose, onSubmit, initialData, roles = [], loadi
           error={errors.password?.message}
           {...register('password')}
         />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Select label="Status" error={errors.status?.message} {...register('status')}>
           <option value="active">Active</option>
           <option value="inactive">Inactive</option>
@@ -55,7 +60,8 @@ function UserFormModal({ open, onClose, onSubmit, initialData, roles = [], loadi
             </option>
           ))}
         </Select>
-        <div className="flex justify-end gap-2 pt-2">
+        </div>
+        <div className="modal-footer -mx-[26px] mt-2 flex justify-end gap-2 border-t border-surface-border bg-surface-hover/40 px-[26px] py-4">
           <Button type="button" variant="secondary" onClick={onClose}>
             Cancel
           </Button>

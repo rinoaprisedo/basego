@@ -25,12 +25,11 @@ function AuthLayout() {
         <img src={loginBackground} alt="" className="absolute inset-0 h-full w-full object-cover opacity-20 mix-blend-luminosity" />
         <div className="pointer-events-none absolute inset-0 opacity-40 [background-image:linear-gradient(rgba(255,255,255,.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.08)_1px,transparent_1px)] [background-size:32px_32px] [mask-image:radial-gradient(ellipse_at_center,black,transparent_75%)]" />
         <div className="relative flex items-center gap-3">
-          <span className="pulse-dot h-2.5 w-2.5 rounded-full bg-[rgb(var(--c-accent))] shadow-[0_0_12px_rgb(var(--c-accent))]" />
           <span className="text-gradient text-[20px] font-bold tracking-tight">{appName}</span>
         </div>
         <div className="relative">
           <div className={`mb-4 inline-flex ${login.badge ? '' : 'hidden'} items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1 font-mono text-[11px] text-white/90`}>
-            <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-[rgb(var(--c-accent))]" /> {login.badge}
+            <span className="h-1.5 w-1.5 rounded-full bg-[rgb(var(--c-accent))]" /> {login.badge}
           </div>
           <h2 className="text-[40px] font-bold leading-[1.1] tracking-tight">
             {login.headline.split(/\*(.+?)\*/g).map((part, i) =>

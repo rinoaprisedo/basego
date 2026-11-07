@@ -1,21 +1,23 @@
 import toast from 'react-hot-toast'
 
-export const DEV_STATUS_STYLE = {
-  todo: 'bg-surface-hover text-text-secondary',
+export const STATUS_STYLE = {
+  open: 'bg-surface-hover text-text-secondary',
   in_progress: 'bg-info-bg text-info',
   need_info: 'bg-warning-bg text-warning',
-  done_by_claude: 'bg-[#efe9fd] text-[#6d4ad6] dark:bg-[#2b2547] dark:text-[#b9a6f7]',
-  done: 'bg-success-bg text-success',
-  wont_fix: 'bg-surface-hover text-text-tertiary line-through',
+  done_dev: 'bg-[#efe9fd] text-[#6d4ad6] dark:bg-[#2b2547] dark:text-[#b9a6f7]',
+  deployed: 'bg-success-bg text-success',
+  closed: 'bg-surface-hover text-text-tertiary',
+  reopen: 'bg-danger-bg text-danger',
 }
 
-export const DEV_STATUS_DOT = {
-  todo: 'bg-text-tertiary',
+export const STATUS_DOT = {
+  open: 'bg-text-tertiary',
   in_progress: 'bg-info',
   need_info: 'bg-warning',
-  done_by_claude: 'bg-[#6d4ad6] dark:bg-[#9c84ee]',
-  done: 'bg-success',
-  wont_fix: 'bg-surface-border-hover',
+  done_dev: 'bg-[#6d4ad6] dark:bg-[#9c84ee]',
+  deployed: 'bg-success',
+  closed: 'bg-surface-border-hover',
+  reopen: 'bg-danger',
 }
 
 export const PRIORITY_STYLE = {
@@ -31,24 +33,18 @@ export const CATEGORY_STYLE = {
   Improvement: 'border-success/30 text-success',
 }
 
-export const QC_STYLE = {
-  Open: 'text-warning',
-  Reopen: 'text-danger',
-  Closed: 'text-success',
-}
-
-export const DEV_STATUS_LABEL = {
-  todo: 'To Do',
+export const STATUS_LABEL = {
+  open: 'Open',
   in_progress: 'In Progress',
-  need_info: 'Butuh Info',
-  done_by_claude: 'Done by Claude',
-  done: 'Done',
-  wont_fix: "Won't Fix",
+  need_info: 'Need Info',
+  done_dev: 'Done Dev',
+  deployed: 'Deployed',
+  closed: 'Closed',
+  reopen: 'Re Open',
 }
 
 export const ticketNo = (n) => `#${n}`
 
-export const dateOnly = (iso) => (iso ? iso.slice(0, 10) : '')
 
 // The prompt a developer pastes into Claude Code. It carries the summary so
 // it works on its own, and the CLI commands so Claude can fetch screenshots
@@ -59,15 +55,15 @@ export function buildPrompt(t) {
     '',
     `Detail lengkap + lampiran: \`cd backend && go run ./cmd/ticket show ${t.number}\``,
     '',
-    `- Platform: ${t.platform} · Role: ${t.role} · Modul: ${t.module}`,
-    `- Priority: ${t.priority} · Category: ${t.category} · QC: ${t.qc_status}`,
+    `- Platform: ${t.platform} · Role: ${t.role || '—'} · Modul: ${t.module}`,
+    `- Priority: ${t.priority} · Category: ${t.category} · Status: ${STATUS_LABEL[t.status] || t.status}`,
     '',
     'Issue:',
     t.issue,
   ]
   if (t.steps) lines.push('', 'Langkah reproduksi:', t.steps)
   if (t.expected) lines.push('', 'Hasil yang diharapkan:', t.expected)
-  if (t.qc_status === 'Reopen' && t.dev_note) lines.push('', 'Catatan perbaikan sebelumnya (QC membuka ulang):', t.dev_note)
+  if (t.status === 'reopen' && t.dev_note) lines.push('', 'Catatan perbaikan sebelumnya (QC membuka ulang):', t.dev_note)
   lines.push(
     '',
     `Mulai: \`go run ./cmd/ticket start ${t.number}\`. Setelah selesai dan build bersih: \`go run ./cmd/ticket done ${t.number} "<apa yang diubah, file, cara QC mengetes>"\`. Kalau butuh info dari QC: \`go run ./cmd/ticket ask ${t.number} "<pertanyaan>"\`.`,
@@ -135,15 +131,25 @@ const pick = (options, raw) => {
   return options.find((o) => o.toLowerCase() === v) || (raw || '').trim()
 }
 
-// "14/10/2026" → "2026-10-14"; ISO stays as is.
+// "14/10/2026" or "14/10/2026 09:30" → "2026-10-14" / "2026-10-14 09:30"; ISO stays as is.
 const toISO = (raw) => {
   const s = (raw || '').trim()
-  const m = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/)
-  return m ? `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}` : s
+  const m = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})(?:[ T](\d{1,2}):(\d{2}))?$/)
+  if (!m) return s
+  const day = `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`
+  return m[4] ? `${day} ${m[4].padStart(2, '0')}:${m[5]}` : day
+}
+
+// Matches a sheet cell ("Open", "Re Open", "in_progress"...) to a status value;
+// empty = open, unknown = '' (reported as invalid).
+const statusKey = (v) => String(v).toLowerCase().replace(/[\s_-]/g, '')
+function statusFromCell(statuses, raw) {
+  const k = statusKey(raw || 'open')
+  return statuses.find((s) => statusKey(s.value) === k || statusKey(s.label) === k)?.value || ''
 }
 
 // Columns in the QC sheet's order: Date, Platform, Role, Modul, Issue,
-// Priority, Category, QC Status. A header row is skipped.
+// Priority, Category, Status (optional, default Open). A header row is skipped.
 export function rowsFromSheet(text, meta) {
   return parseTSV(text)
     .filter((cells) => cells[0]?.trim().toLowerCase() !== 'date')
@@ -156,18 +162,18 @@ export function rowsFromSheet(text, meta) {
         issue: (c[4] || '').trim(),
         priority: pick(meta.priorities, c[5]),
         category: pick(meta.categories, c[6]),
-        qc_status: pick(meta.qc_statuses, c[7] || 'Open'),
+        status: statusFromCell(meta.statuses, c[7]),
       }
       const errors = []
-      if (row.reported_on && !/^\d{4}-\d{2}-\d{2}$/.test(row.reported_on)) errors.push('tanggal')
+      if (row.reported_on && !/^\d{4}-\d{2}-\d{2}([ T]\d{2}:\d{2})?$/.test(row.reported_on)) errors.push('tanggal')
       const platforms = splitPlatforms(row.platform)
       if (!platforms.length || platforms.some((p) => !meta.platforms.includes(p))) errors.push('platform')
-      if (!meta.roles.includes(row.role)) errors.push('role')
+      if (row.role && !meta.roles.includes(row.role)) errors.push('role')
       if (!row.module) errors.push('modul')
       if (!row.issue) errors.push('issue')
       if (!meta.priorities.includes(row.priority)) errors.push('priority')
       if (!meta.categories.includes(row.category)) errors.push('category')
-      if (!meta.qc_statuses.includes(row.qc_status)) errors.push('QC status')
+      if (!row.status) errors.push('status')
       return { row, errors }
     })
 }
