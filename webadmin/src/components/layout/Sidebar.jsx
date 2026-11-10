@@ -69,39 +69,6 @@ function Sidebar() {
             <X size={20} />
           </button>
         </div>
-        <div className="mx-3 mt-3 rounded-xl border border-[rgb(var(--c-sidebar-border))] bg-[rgb(var(--c-sidebar-hover))] p-2.5">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-white">
-              {(user?.name || 'U').charAt(0).toUpperCase()}
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="break-words text-[13px] font-semibold leading-tight text-[rgb(var(--c-sidebar-title))]">
-                {user?.name || 'User'}
-              </div>
-              <div className="truncate text-[11px] text-[rgb(var(--c-sidebar-muted))]" title={user?.email}>
-                {user?.email}
-              </div>
-            </div>
-          </div>
-          <div className="mt-2.5 grid grid-cols-2 gap-1.5">
-            <button
-              onClick={toggleTheme}
-              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-              className="flex h-8 items-center justify-center gap-1.5 rounded-lg bg-[rgb(var(--c-sidebar-border)/0.6)] text-xs font-medium text-sidebar-text transition-colors hover:bg-[rgb(var(--c-sidebar-border))] hover:text-[rgb(var(--c-sidebar-title))]"
-            >
-              {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
-              {theme === 'dark' ? 'Light' : 'Dark'}
-            </button>
-            <button
-              onClick={handleLogout}
-              aria-label="Logout"
-              className="flex h-8 items-center justify-center gap-1.5 rounded-lg bg-danger/10 text-xs font-medium text-danger transition-colors hover:bg-danger/20"
-            >
-              <LogOut size={14} />
-              Logout
-            </button>
-          </div>
-        </div>
         <nav className="flex-1 overflow-y-auto px-3 py-3">
           {sections.map((section) => {
             const visibleMenus = (section.menus || []).filter((menu) => canView(menu.path) || canView(menu.name))
@@ -149,6 +116,39 @@ function Sidebar() {
             )
           })}
         </nav>
+        <div className="mx-3 mb-3 rounded-xl border border-[rgb(var(--c-sidebar-border))] bg-[rgb(var(--c-sidebar-hover))] p-2.5">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-white">
+              {(user?.name || 'U').charAt(0).toUpperCase()}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="break-words text-[13px] font-semibold leading-tight text-[rgb(var(--c-sidebar-title))]">
+                {user?.name || 'User'}
+              </div>
+              <div className="truncate text-[11px] text-[rgb(var(--c-sidebar-muted))]" title={user?.email}>
+                {user?.email}
+              </div>
+            </div>
+          </div>
+          <div className="mt-2.5 grid grid-cols-2 gap-1.5">
+            <button
+              onClick={toggleTheme}
+              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              className="flex h-8 items-center justify-center gap-1.5 rounded-lg bg-[rgb(var(--c-sidebar-border)/0.6)] text-xs font-medium text-sidebar-text transition-colors hover:bg-[rgb(var(--c-sidebar-border))] hover:text-[rgb(var(--c-sidebar-title))]"
+            >
+              {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
+              {theme === 'dark' ? 'Light' : 'Dark'}
+            </button>
+            <button
+              onClick={handleLogout}
+              aria-label="Logout"
+              className="flex h-8 items-center justify-center gap-1.5 rounded-lg bg-danger/10 text-xs font-medium text-danger transition-colors hover:bg-danger/20"
+            >
+              <LogOut size={14} />
+              Logout
+            </button>
+          </div>
+        </div>
       </aside>
       {!isCollapsed && (
         <div className="fixed inset-0 z-30 bg-black/40 lg:hidden" onClick={toggle} />
