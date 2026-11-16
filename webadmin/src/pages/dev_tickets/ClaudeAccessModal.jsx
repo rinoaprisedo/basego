@@ -95,7 +95,7 @@ function ClaudeAccessModal({ open, onClose, canEdit }) {
               </Button>
             </form>
           ) : (
-            <p className="text-xs text-text-tertiary">Butuh izin edit pada menu Tiket.</p>
+            <p className="text-xs text-text-tertiary">Butuh izin edit pada menu Tiket Dev.</p>
           )}
           {created && (
             <p className="rounded-md bg-warning-bg px-3 py-2 text-xs text-warning">Token hanya ditampilkan sekali — salin sekarang ke langkah 2.</p>

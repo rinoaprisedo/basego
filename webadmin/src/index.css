@@ -125,7 +125,7 @@ body {
   color: #e6edf7;
 }
 
-@keyframes rise { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: none } }
+@keyframes rise { from { opacity: 0; transform: translateY(12px) } to { opacity: 1; transform: none } }
 .rise { animation: rise .45s ease both; }
 
 ::-webkit-scrollbar {

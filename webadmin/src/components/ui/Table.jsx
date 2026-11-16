@@ -110,7 +110,7 @@ function Table({
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-surface-border p-4 text-[13px]">
           <div className="flex items-center gap-2 text-text-secondary">
             <span>Rows per page</span>
-            <div className="w-[62px]">
+            <div className="w-[84px]">
               <Select
                 compact
                 aria-label="Rows per page"

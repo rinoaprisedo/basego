@@ -120,7 +120,7 @@ func seedMenus(db *gorm.DB) []uint64 {
 		{
 			Section: menus.MenuSection{Name: "Development", Icon: "Code", Order: 4},
 			Menus: []menuDef{
-				{Name: "Tiket", Icon: "Ticket", Path: "dev-tickets"},
+				{Name: "Tiket Dev", Icon: "Ticket", Path: "dev-tickets"},
 			},
 		},
 	}
@@ -176,8 +176,8 @@ func seedSettings(db *gorm.DB) {
 		"app_name":          "BaseProject",
 		"app_logo":          "",
 		"app_favicon":       "",
-		"primary_color":     "#35494d",
-		"sidebar_color":     "",
+		"primary_color":     "#ec4141",
+		"sidebar_color":     "#000000",
 		"login_badge":       "SECURE ACCESS",
 		"login_headline":    "Control everything from *one place.*",
 		"login_description": "Manage users, roles, and system activity with a fast, secure admin console.",

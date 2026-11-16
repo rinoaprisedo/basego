@@ -109,7 +109,7 @@ func (h *Handler) bearer(c *gin.Context) {
 	auth := c.GetHeader("Authorization")
 	plain := strings.TrimSpace(strings.TrimPrefix(auth, "Bearer "))
 	if !strings.HasPrefix(auth, "Bearer ") || !strings.HasPrefix(plain, tokenPrefix) {
-		utils.Error(c, 401, "Authorization: Bearer <token> wajib (buat token di menu Tiket → Akses Claude)")
+		utils.Error(c, 401, "Authorization: Bearer <token> wajib (buat token di menu Tiket Dev → Akses Claude)")
 		c.Abort()
 		return
 	}

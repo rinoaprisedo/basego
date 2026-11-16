@@ -10,7 +10,7 @@
 //
 // Config: BASEGO_TICKET_API (e.g. http://localhost:8800/api/v1) and
 // BASEGO_TICKET_TOKEN, or the same keys in a gitignored .ticket.env at the repo
-// root. Tokens are created in admin Tiket → Akses Claude.
+// root. Tokens are created in admin Tiket Dev → Akses Claude.
 package main
 
 import (
@@ -121,7 +121,7 @@ func loadConfig() {
 		}
 	}
 	if apiURL == "" || token == "" {
-		fail("set BASEGO_TICKET_API and BASEGO_TICKET_TOKEN (env or .ticket.env at the repo root); create a token in admin Tiket → Akses Claude")
+		fail("set BASEGO_TICKET_API and BASEGO_TICKET_TOKEN (env or .ticket.env at the repo root); create a token in admin Tiket Dev → Akses Claude")
 	}
 	apiURL = strings.TrimRight(apiURL, "/")
 }

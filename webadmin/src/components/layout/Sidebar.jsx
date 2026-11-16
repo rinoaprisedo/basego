@@ -59,8 +59,8 @@ function Sidebar() {
   return (
     <>
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-[240px] flex-col border-r border-[rgb(var(--c-sidebar-border)/0.7)] bg-sidebar-bg/80 backdrop-blur-xl transition-transform duration-200 ${
-          isCollapsed ? '-translate-x-full lg:translate-x-0' : 'translate-x-0'
+        className={`fixed bottom-3 left-3 top-3 z-40 flex w-[240px] flex-col overflow-hidden rounded-2xl border border-[rgb(var(--c-sidebar-border)/0.7)] bg-sidebar-bg shadow-[0_12px_40px_-8px_rgba(0,0,0,0.35)] transition-transform duration-200 ${
+          isCollapsed ? '-translate-x-[calc(100%+12px)] lg:translate-x-0' : 'translate-x-0'
         }`}
       >
         <div className="relative flex h-[60px] items-center justify-center border-b border-[rgb(var(--c-sidebar-border))] px-4">
@@ -116,38 +116,34 @@ function Sidebar() {
             )
           })}
         </nav>
-        <div className="mx-3 mb-3 rounded-xl border border-[rgb(var(--c-sidebar-border))] bg-[rgb(var(--c-sidebar-hover))] p-2.5">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-white">
-              {(user?.name || 'U').charAt(0).toUpperCase()}
+        <div className="flex items-center gap-2.5 border-t border-[rgb(var(--c-sidebar-border))] px-4 py-3">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-[13px] font-semibold text-white">
+            {(user?.name || 'U').charAt(0).toUpperCase()}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-[13px] font-semibold leading-tight text-[rgb(var(--c-sidebar-title))]" title={user?.name}>
+              {user?.name || 'User'}
             </div>
-            <div className="min-w-0 flex-1">
-              <div className="break-words text-[13px] font-semibold leading-tight text-[rgb(var(--c-sidebar-title))]">
-                {user?.name || 'User'}
-              </div>
-              <div className="truncate text-[11px] text-[rgb(var(--c-sidebar-muted))]" title={user?.email}>
-                {user?.email}
-              </div>
+            <div className="truncate text-[11px] text-[rgb(var(--c-sidebar-muted))]" title={user?.email}>
+              {user?.email}
             </div>
           </div>
-          <div className="mt-2.5 grid grid-cols-2 gap-1.5">
-            <button
-              onClick={toggleTheme}
-              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-              className="flex h-8 items-center justify-center gap-1.5 rounded-lg bg-[rgb(var(--c-sidebar-border)/0.6)] text-xs font-medium text-sidebar-text transition-colors hover:bg-[rgb(var(--c-sidebar-border))] hover:text-[rgb(var(--c-sidebar-title))]"
-            >
-              {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
-              {theme === 'dark' ? 'Light' : 'Dark'}
-            </button>
-            <button
-              onClick={handleLogout}
-              aria-label="Logout"
-              className="flex h-8 items-center justify-center gap-1.5 rounded-lg bg-danger/10 text-xs font-medium text-danger transition-colors hover:bg-danger/20"
-            >
-              <LogOut size={14} />
-              Logout
-            </button>
-          </div>
+          <button
+            onClick={toggleTheme}
+            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sidebar-text transition-colors hover:bg-[rgb(var(--c-sidebar-hover))] hover:text-[rgb(var(--c-sidebar-title))]"
+          >
+            {theme === 'dark' ? <Sun size={16} strokeWidth={1.7} /> : <Moon size={16} strokeWidth={1.7} />}
+          </button>
+          <button
+            onClick={handleLogout}
+            aria-label="Logout"
+            title="Logout"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sidebar-text transition-colors hover:bg-danger/15 hover:text-danger"
+          >
+            <LogOut size={16} strokeWidth={1.7} />
+          </button>
         </div>
       </aside>
       {!isCollapsed && (
